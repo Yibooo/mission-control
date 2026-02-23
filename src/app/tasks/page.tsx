@@ -48,9 +48,19 @@ export default function TasksPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+      {/* ヘッダー — page-headerクラスでモバイルwrap対応 */}
+      <div
+        className="page-header"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+          gap: "10px",
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "#e2e8f0" }}>📋 タスクボード</h1>
+          <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#e2e8f0" }}>📋 タスクボード</h1>
           <p style={{ color: "#64748b", fontSize: "13px", marginTop: "4px" }}>AIと自分のタスクをリアルタイムで管理</p>
         </div>
         <button
@@ -64,22 +74,24 @@ export default function TasksPage() {
             fontSize: "14px",
             cursor: "pointer",
             fontWeight: 500,
+            flexShrink: 0,
           }}
         >
           + タスクを追加
         </button>
       </div>
 
-      {/* 追加フォーム */}
+      {/* 追加フォーム — grid-formクラスでモバイル1列対応 */}
       {showForm && (
         <form
           onSubmit={handleSubmit}
+          className="grid-form"
           style={{
             background: "var(--surface)",
             border: "1px solid var(--border)",
             borderRadius: "12px",
-            padding: "20px",
-            marginBottom: "24px",
+            padding: "16px",
+            marginBottom: "20px",
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: "12px",
@@ -143,13 +155,21 @@ export default function TasksPage() {
         </form>
       )}
 
-      {/* カンバンボード */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+      {/* カンバンボード — grid-kanbanクラスでモバイル1列対応 */}
+      <div
+        className="grid-kanban"
+        style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}
+      >
         {COLUMNS.map(({ key, label, icon, color }) => {
           const colTasks = tasks?.filter((t) => t.status === key) ?? [];
           return (
-            <div key={key} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+            <div key={key} style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              padding: "14px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                 <span>{icon}</span>
                 <span style={{ fontWeight: 600, fontSize: "14px", color }}>{label}</span>
                 <span style={{
@@ -194,7 +214,7 @@ export default function TasksPage() {
                     </div>
 
                     {/* ステータス変更ボタン */}
-                    <div style={{ display: "flex", gap: "4px", marginTop: "10px" }}>
+                    <div style={{ display: "flex", gap: "4px", marginTop: "10px", flexWrap: "wrap" }}>
                       {key !== "todo" && (
                         <button onClick={() => updateStatus({ id: task._id as Id<"tasks">, status: "todo" })} style={miniBtn}>← Todo</button>
                       )}
@@ -257,7 +277,7 @@ const miniBtn: React.CSSProperties = {
   color: "#94a3b8",
   border: "1px solid var(--border)",
   borderRadius: "4px",
-  padding: "2px 6px",
+  padding: "3px 8px",
   fontSize: "11px",
   cursor: "pointer",
 };

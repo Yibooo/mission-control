@@ -26,17 +26,25 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "28px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#e2e8f0" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <h1 style={{ fontSize: "22px", fontWeight: 700, color: "#e2e8f0" }}>
           🛸 Mission Control
         </h1>
-        <p style={{ color: "#64748b", marginTop: "4px", fontSize: "14px" }}>
+        <p style={{ color: "#64748b", marginTop: "4px", fontSize: "13px" }}>
           AIマルチエージェント管理システム
         </p>
       </div>
 
-      {/* サマリーカード */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
+      {/* サマリーカード — grid-3クラスでレスポンシブ */}
+      <div
+        className="grid-3"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "12px",
+          marginBottom: "24px",
+        }}
+      >
         {cards.map(({ label, value, color, icon, href }) => (
           <Link key={label} href={href} style={{ textDecoration: "none" }}>
             <div
@@ -44,23 +52,33 @@ export default function Dashboard() {
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
                 borderRadius: "12px",
-                padding: "20px",
+                padding: "16px",
                 cursor: "pointer",
                 transition: "border-color 0.15s",
               }}
             >
-              <div style={{ fontSize: "22px", marginBottom: "8px" }}>{icon}</div>
-              <div style={{ fontSize: "28px", fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>{label}</div>
+              <div style={{ fontSize: "20px", marginBottom: "6px" }}>{icon}</div>
+              <div style={{ fontSize: "26px", fontWeight: 700, color }}>{value}</div>
+              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>{label}</div>
             </div>
           </Link>
         ))}
       </div>
 
       {/* 最近のタスク */}
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "16px", fontWeight: 600 }}>最近のタスク</h2>
+      <div style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "12px",
+        padding: "16px",
+      }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "14px",
+        }}>
+          <h2 style={{ fontSize: "15px", fontWeight: 600 }}>最近のタスク</h2>
           <Link href="/tasks" style={{ fontSize: "13px", color: "#6366f1", textDecoration: "none" }}>
             すべて見る →
           </Link>
@@ -71,16 +89,24 @@ export default function Dashboard() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "12px",
+              gap: "10px",
               padding: "10px 0",
               borderBottom: "1px solid var(--border)",
             }}
           >
-            <span style={{ fontSize: "18px" }}>
+            <span style={{ fontSize: "18px", flexShrink: 0 }}>
               {task.status === "todo" ? "📌" : task.status === "in_progress" ? "⚡" : "✅"}
             </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "14px", color: "#e2e8f0" }}>{task.title}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: "14px",
+                color: "#e2e8f0",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}>
+                {task.title}
+              </div>
               <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
                 担当: {task.assignee === "ai" ? "🤖 AI" : "👤 自分"}
               </div>
@@ -90,6 +116,7 @@ export default function Dashboard() {
                 fontSize: "11px",
                 padding: "2px 8px",
                 borderRadius: "99px",
+                flexShrink: 0,
                 background:
                   task.priority === "high" ? "rgba(239,68,68,0.15)" :
                   task.priority === "medium" ? "rgba(245,158,11,0.15)" :

@@ -11,6 +11,7 @@
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
+  --bottom-nav-height: 60px;
 }
 
 body {
@@ -32,4 +33,84 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
+}
+
+/* ─── レスポンシブ共通 ─── */
+
+/* デスクトップサイドバーはデフォルト表示 */
+.sidebar-desktop {
+  display: flex;
+}
+
+/* モバイル下部ナビはデフォルト非表示 */
+.nav-bottom {
+  display: none;
+}
+
+/* モバイル: 768px以下 */
+@media (max-width: 768px) {
+  /* デスクトップサイドバーを隠す */
+  .sidebar-desktop {
+    display: none !important;
+  }
+
+  /* 下部ナビを表示 */
+  .nav-bottom {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--bottom-nav-height);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    align-items: stretch;
+    justify-content: space-around;
+    padding: 0;
+  }
+
+  /* メインコンテンツの下に下部ナビ分のpaddingを追加 */
+  .main-content {
+    padding-bottom: calc(var(--bottom-nav-height) + 16px) !important;
+  }
+
+  /* グリッド: 3列→2列 */
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* グリッド: 3列→1列（カンバン等） */
+  .grid-kanban {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* フォームグリッドを1列に */
+  .grid-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* タスクフォーム内の全幅要素 */
+  .grid-form .full-width {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* ページヘッダーのflexをwrapに */
+  .page-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Command UIの高さ調整 */
+  .command-container {
+    height: calc(100dvh - var(--bottom-nav-height) - 32px) !important;
+  }
+}
+
+/* 小さいモバイル: 480px以下 */
+@media (max-width: 480px) {
+  /* グリッド: 2列→1列 */
+  .grid-3 {
+    grid-template-columns: 1fr !important;
+  }
 }

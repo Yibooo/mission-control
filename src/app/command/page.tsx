@@ -102,7 +102,7 @@ export default function CommandPage() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)", maxHeight: "calc(100vh - 48px)" }}>
+    <div className="command-container" style={{ display: "flex", flexDirection: "column", height: "calc(100dvh - 64px)", maxHeight: "calc(100dvh - 64px)" }}>
       {/* ヘッダー */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexShrink: 0 }}>
         <div>

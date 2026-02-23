@@ -50,7 +50,7 @@ export default function TeamPage() {
         <h2 style={{ fontSize: "14px", color: "#94a3b8", fontWeight: 500, marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
           サブエージェント
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
+        <div className="grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
           {subAgents.map((agent) => (
             <AgentCard key={agent._id} agent={agent} onStatusChange={updateStatus} />
           ))}
