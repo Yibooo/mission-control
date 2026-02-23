@@ -60,9 +60,11 @@ export default function CommandPage() {
       setLastActions(result.actions ?? []);
     } catch (err) {
       console.error("エラー:", err);
+      // エラーの詳細メッセージを取得して表示
+      const errMsg = err instanceof Error ? err.message : String(err);
       await addMessage({
         role: "assistant",
-        content: "⚠️ エラーが発生しました。しばらくしてから再試行してください。",
+        content: `⚠️ エラーが発生しました。\n\n詳細: ${errMsg}`,
         agentName: "System",
       });
     } finally {

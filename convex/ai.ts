@@ -71,7 +71,7 @@ export const chat = action({
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 2048,
         system: SYSTEM_PROMPT,
         messages: [
@@ -85,8 +85,15 @@ export const chat = action({
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Anthropic API エラー: ${err}`);
+      const errText = await response.text();
+      let errMsg = `Anthropic API エラー (${response.status})`;
+      try {
+        const errJson = JSON.parse(errText);
+        errMsg += `: ${errJson?.error?.message ?? errText}`;
+      } catch {
+        errMsg += `: ${errText}`;
+      }
+      throw new Error(errMsg);
     }
 
     const data = await response.json();
