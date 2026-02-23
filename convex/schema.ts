@@ -71,6 +71,14 @@ export default defineSchema({
     updatedAt: v.number(),
   }),
 
+  // Commandチャット履歴
+  messages: defineTable({
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    agentName: v.optional(v.string()),   // 応答したエージェント名
+    createdAt: v.number(),
+  }),
+
   // エージェント（チーム）
   agents: defineTable({
     name: v.string(),
