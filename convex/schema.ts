@@ -79,6 +79,23 @@ export default defineSchema({
     createdAt: v.number(),
   }),
 
+  // ユーザー認証
+  users: defineTable({
+    username: v.string(),          // ログインID
+    passwordHash: v.string(),      // bcryptハッシュ
+    displayName: v.optional(v.string()),
+    role: v.union(v.literal("admin"), v.literal("member")),
+    createdAt: v.number(),
+  }).index("by_username", ["username"]),
+
+  // セッショントークン
+  sessions: defineTable({
+    userId: v.id("users"),
+    token: v.string(),             // ランダムトークン
+    expiresAt: v.number(),         // UNIXミリ秒
+    createdAt: v.number(),
+  }).index("by_token", ["token"]),
+
   // エージェント（チーム）
   agents: defineTable({
     name: v.string(),

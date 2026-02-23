@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
-import Sidebar from "@/components/Sidebar";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Mission Control",
@@ -24,15 +24,7 @@ export default function RootLayout({
     <html lang="ja">
       <body>
         <ConvexClientProvider>
-          <div style={{ display: "flex", minHeight: "100vh" }}>
-            <Sidebar />
-            <main
-              className="main-content"
-              style={{ flex: 1, padding: "20px", overflow: "auto" }}
-            >
-              {children}
-            </main>
-          </div>
+          <AppShell>{children}</AppShell>
         </ConvexClientProvider>
       </body>
     </html>
