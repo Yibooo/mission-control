@@ -1,65 +1,115 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import Link from "next/link";
+
+export default function Dashboard() {
+  const tasks = useQuery(api.tasks.list);
+  const agents = useQuery(api.agents.list);
+  const memories = useQuery(api.memories.list);
+  const schedules = useQuery(api.schedules.list);
+
+  const todoCount = tasks?.filter((t) => t.status === "todo").length ?? 0;
+  const inProgressCount = tasks?.filter((t) => t.status === "in_progress").length ?? 0;
+  const doneCount = tasks?.filter((t) => t.status === "done").length ?? 0;
+  const workingAgents = agents?.filter((a) => a.status === "working").length ?? 0;
+
+  const cards = [
+    { label: "Todo", value: todoCount, color: "#64748b", icon: "📌", href: "/tasks" },
+    { label: "進行中", value: inProgressCount, color: "#f59e0b", icon: "⚡", href: "/tasks" },
+    { label: "完了", value: doneCount, color: "#10b981", icon: "✅", href: "/tasks" },
+    { label: "稼働中エージェント", value: workingAgents, color: "#6366f1", icon: "🤖", href: "/team" },
+    { label: "メモリ数", value: memories?.length ?? 0, color: "#8b5cf6", icon: "🧠", href: "/memories" },
+    { label: "スケジュール", value: schedules?.length ?? 0, color: "#0ea5e9", icon: "📅", href: "/calendar" },
+  ];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div>
+      <div style={{ marginBottom: "28px" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#e2e8f0" }}>
+          🛸 Mission Control
+        </h1>
+        <p style={{ color: "#64748b", marginTop: "4px", fontSize: "14px" }}>
+          AIマルチエージェント管理システム
+        </p>
+      </div>
+
+      {/* サマリーカード */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
+        {cards.map(({ label, value, color, icon, href }) => (
+          <Link key={label} href={href} style={{ textDecoration: "none" }}>
+            <div
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "12px",
+                padding: "20px",
+                cursor: "pointer",
+                transition: "border-color 0.15s",
+              }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              <div style={{ fontSize: "22px", marginBottom: "8px" }}>{icon}</div>
+              <div style={{ fontSize: "28px", fontWeight: 700, color }}>{value}</div>
+              <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>{label}</div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* 最近のタスク */}
+      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <h2 style={{ fontSize: "16px", fontWeight: 600 }}>最近のタスク</h2>
+          <Link href="/tasks" style={{ fontSize: "13px", color: "#6366f1", textDecoration: "none" }}>
+            すべて見る →
+          </Link>
+        </div>
+        {tasks?.slice(0, 5).map((task) => (
+          <div
+            key={task._id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "10px 0",
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <span style={{ fontSize: "18px" }}>
+              {task.status === "todo" ? "📌" : task.status === "in_progress" ? "⚡" : "✅"}
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "14px", color: "#e2e8f0" }}>{task.title}</div>
+              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                担当: {task.assignee === "ai" ? "🤖 AI" : "👤 自分"}
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: "11px",
+                padding: "2px 8px",
+                borderRadius: "99px",
+                background:
+                  task.priority === "high" ? "rgba(239,68,68,0.15)" :
+                  task.priority === "medium" ? "rgba(245,158,11,0.15)" :
+                  "rgba(100,116,139,0.15)",
+                color:
+                  task.priority === "high" ? "#ef4444" :
+                  task.priority === "medium" ? "#f59e0b" :
+                  "#94a3b8",
+              }}
             >
-              Learning
-            </a>{" "}
-            center.
+              {task.priority}
+            </span>
+          </div>
+        ))}
+        {(!tasks || tasks.length === 0) && (
+          <p style={{ color: "#64748b", fontSize: "14px", textAlign: "center", padding: "20px 0" }}>
+            タスクがありません。タスクボードから追加してください。
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        )}
+      </div>
     </div>
   );
 }
