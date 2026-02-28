@@ -756,14 +756,11 @@ function buildGmailUrl(to: string, subject: string, body: string): string {
   return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
-// ─── ヘルパー: Yahoo Mail 構成URL を生成 ───
-// https://compose.mail.yahoo.co.jp/?To=...&Subject=...&Body=...
-// → Yahoo Japan Mail の作成画面が宛先・件名・本文入力済みで開く
+// ─── ヘルパー: Yahoo Mail 用 mailto: URL を生成 ───
+// Yahoo Japan Mail は外部からの compose URL を持たないため mailto: を使用。
+// ブラウザの「デフォルトメールアプリ」に Yahoo Mail を設定していれば
+// Yahoo Mail の作成画面が宛先・件名・本文入力済みで開く。
+// 設定方法: chrome://settings/handlers → mail → Yahoo Mail を選択
 function buildYahooMailUrl(to: string, subject: string, body: string): string {
-  const params = new URLSearchParams({
-    To: to,
-    Subject: subject,
-    Body: body,
-  });
-  return `https://compose.mail.yahoo.co.jp/?${params.toString()}`;
+  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
