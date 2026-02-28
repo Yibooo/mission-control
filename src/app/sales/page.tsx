@@ -53,6 +53,7 @@ export default function SalesPage() {
   const [agentLog, setAgentLog] = useState<string[]>([]);
   const [showLogFor, setShowLogFor] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [yahooClickedId, setYahooClickedId] = useState<string | null>(null);
 
   const filteredLeads = activeTab === "all"
     ? allLeads
@@ -135,6 +136,16 @@ export default function SalesPage() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Yahoo Mail: 本文をクリップボードにコピーしてCompose画面を開く
+  // Yahoo Japan Mail はURLパラメータでの事前入力非対応のため、クリップボード経由で対応
+  const handleYahooMailClick = (draftId: string, to: string, subject: string, body: string) => {
+    const fullText = `宛先: ${to}\n件名: ${subject}\n\n${body}`;
+    navigator.clipboard.writeText(fullText).catch(() => {});
+    window.open("https://mail.yahoo.co.jp/compose", "_blank");
+    setYahooClickedId(draftId);
+    setTimeout(() => setYahooClickedId(null), 3000);
   };
 
   const handleReject = async (draftId: Id<"emailDrafts">) => {
@@ -461,18 +472,18 @@ export default function SalesPage() {
                             >
                               <span>📧</span> Gmailで開く
                             </a>
-                            <a
-                              href={buildYahooMailUrl(
+                            <button
+                              onClick={() => handleYahooMailClick(
+                                draft._id,
                                 lead.contactEmail,
                                 draft.subject,
                                 draft.editedBody ?? draft.body
                               )}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ ...btnStyle("#6001d2"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                              style={{ ...btnStyle("#6001d2") }}
+                              title="宛先・件名・本文をクリップボードにコピーしてYahoo Mail作成画面を開きます"
                             >
-                              <span>📨</span> Yahoo Mailで開く
-                            </a>
+                              <span>📨</span> {yahooClickedId === draft._id ? "📋 コピー済み！貼り付けてください" : "Yahoo Mailで開く"}
+                            </button>
                           </>
                         )}
                         <button onClick={() => handleApproveAndSend(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#10b981") }}>
@@ -509,18 +520,18 @@ export default function SalesPage() {
                             >
                               <span>📧</span> Gmailで開く
                             </a>
-                            <a
-                              href={buildYahooMailUrl(
+                            <button
+                              onClick={() => handleYahooMailClick(
+                                draft._id,
                                 lead.contactEmail,
                                 draft.subject,
                                 draft.editedBody ?? draft.body
                               )}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ ...btnStyle("#6001d2"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                              style={{ ...btnStyle("#6001d2") }}
+                              title="宛先・件名・本文をクリップボードにコピーしてYahoo Mail作成画面を開きます"
                             >
-                              <span>📨</span> Yahoo Mailで開く
-                            </a>
+                              <span>📨</span> {yahooClickedId === draft._id ? "📋 コピー済み！貼り付けてください" : "Yahoo Mailで開く"}
+                            </button>
                           </>
                         )}
                         <button
@@ -756,10 +767,3 @@ function buildGmailUrl(to: string, subject: string, body: string): string {
   return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
-// ─── ヘルパー: Yahoo Japan Mail ブラウザ内作成画面 URL を生成 ───
-// mail.yahoo.co.jp にログイン済みであれば、ブラウザ内で宛先・件名・本文が
-// 入力済みの作成画面が開く。
-function buildYahooMailUrl(to: string, subject: string, body: string): string {
-  const params = new URLSearchParams({ to, subject, body });
-  return `https://mail.yahoo.co.jp/compose?${params.toString()}`;
-}
