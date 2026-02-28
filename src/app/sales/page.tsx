@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useState } from "react";
@@ -37,6 +37,7 @@ export default function SalesPage() {
   const recentLogs = useQuery(api.sales.listSalesLogs, { limit: 30 });
 
   const runMock = useMutation(api.sales.runMockSalesAgent);
+  const runRealAgent = useAction(api.salesAgent.runSalesAgent);
   const approveDraft = useMutation(api.sales.approveDraft);
   const rejectDraft = useMutation(api.sales.rejectDraft);
   const markSent = useMutation(api.sales.markDraftSent);
@@ -45,17 +46,38 @@ export default function SalesPage() {
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState<{ id: string; body: string } | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [runMode, setRunMode] = useState<"real" | "mock">("real");
+  const [agentLog, setAgentLog] = useState<string[]>([]);
   const [showLogFor, setShowLogFor] = useState<string | null>(null);
 
   const filteredLeads = activeTab === "all"
     ? allLeads
     : allLeads?.filter((l) => l.status === activeTab);
 
-  const handleRunMock = async () => {
+  const handleRunAgent = async () => {
     setIsRunning(true);
+    setAgentLog([]);
     try {
-      const result = await runMock({ targetArea: "東京都・首都圏", count: 3 });
-      alert(`✅ モックエージェント完了: ${result.createdCount}件のリードと草稿を生成しました`);
+      if (runMode === "real") {
+        setAgentLog(["🔍 Tavily で首都圏の企業を検索中..."]);
+        const result = await runRealAgent({ targetArea: "東京都・首都圏", maxLeads: 5 });
+        const msgs = [
+          `✅ 完了: ${result.leadsCreated}社のリードを追加`,
+          `📝 ${result.draftsCreated}件のメール草稿を生成`,
+        ];
+        if (result.errors.length > 0) msgs.push(`⚠️ エラー ${result.errors.length}件`);
+        setAgentLog(msgs);
+        if (result.leadsCreated === 0) {
+          alert("⚠️ リードが見つかりませんでした。検索結果に企業情報が含まれなかった可能性があります。モックモードでお試しください。");
+        }
+      } else {
+        setAgentLog(["🎭 モックデータを生成中..."]);
+        const result = await runMock({ targetArea: "東京都・首都圏", count: 3 });
+        setAgentLog([`✅ モック完了: ${result.createdCount}件を生成`]);
+      }
+    } catch (e) {
+      setAgentLog([`❌ エラー: ${String(e)}`]);
+      alert(`エラーが発生しました: ${String(e)}`);
     } finally {
       setIsRunning(false);
     }
@@ -92,33 +114,86 @@ export default function SalesPage() {
             🎯 営業エージェント
           </h1>
           <p style={{ color: "#64748b", fontSize: "13px", marginTop: "4px" }}>
-            AI駆け込み寺 — 自動営業ワークフロー管理
+            AI駆け込み寺 — Gemini + Tavily 自動営業ワークフロー
           </p>
         </div>
-        <button
-          onClick={handleRunMock}
-          disabled={isRunning}
-          style={{
-            background: isRunning ? "#334155" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "8px",
-            padding: "10px 20px",
-            fontSize: "14px",
-            fontWeight: 600,
-            cursor: isRunning ? "not-allowed" : "pointer",
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {/* モード切り替え */}
+          <div style={{
             display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          {isRunning ? (
-            <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> 実行中...</>
-          ) : (
-            <><span>🚀</span> エージェント起動（モック）</>
-          )}
-        </button>
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            overflow: "hidden",
+            fontSize: "12px",
+          }}>
+            {(["real", "mock"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setRunMode(mode)}
+                style={{
+                  padding: "6px 12px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: runMode === mode ? "rgba(99,102,241,0.25)" : "transparent",
+                  color: runMode === mode ? "#a5b4fc" : "#64748b",
+                  fontWeight: runMode === mode ? 600 : 400,
+                }}
+              >
+                {mode === "real" ? "🤖 AI実行" : "🎭 モック"}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleRunAgent}
+            disabled={isRunning}
+            style={{
+              background: isRunning ? "#334155" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "10px 20px",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: isRunning ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            {isRunning ? (
+              <><span>⏳</span> 実行中...</>
+            ) : (
+              <><span>🚀</span> エージェント起動</>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* エージェント実行ログ */}
+      {(isRunning || agentLog.length > 0) && (
+        <div style={{
+          background: "rgba(99,102,241,0.08)",
+          border: "1px solid rgba(99,102,241,0.25)",
+          borderRadius: "10px",
+          padding: "14px 16px",
+          marginBottom: "20px",
+          fontSize: "13px",
+        }}>
+          <div style={{ color: "#a5b4fc", fontWeight: 600, marginBottom: "8px", fontSize: "12px" }}>
+            🤖 エージェントログ
+          </div>
+          {isRunning && (
+            <div style={{ color: "#94a3b8", display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }}>●</span>
+              Gemini + Tavily で首都圏の企業をリサーチ中... （30秒〜2分かかります）
+            </div>
+          )}
+          {agentLog.map((msg, i) => (
+            <div key={i} style={{ color: "#94a3b8", marginTop: "4px" }}>{msg}</div>
+          ))}
+        </div>
+      )}
 
       {/* 統計サマリー */}
       <div className="grid-5" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "28px" }}>
