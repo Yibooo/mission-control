@@ -5,9 +5,39 @@ import { v } from "convex/values";
 import { api } from "./_generated/api";
 
 // ─────────────────────────────────────────────────────────────────
-// 外部API呼び出しヘルパー
+// Tavily側でフィルタするドメイン（ニュース・SNS・求人サイト等）
 // ─────────────────────────────────────────────────────────────────
+const EXCLUDE_DOMAINS = [
+  "nikkei.com", "asahi.com", "yomiuri.co.jp", "mainichi.jp", "nhk.or.jp",
+  "sankei.com", "jiji.com", "kyodo.co.jp",
+  "yahoo.co.jp", "google.com", "bing.com",
+  "hatena.ne.jp", "ameblo.jp", "livedoor.com", "note.com", "blogger.com",
+  "twitter.com", "x.com", "facebook.com", "instagram.com", "linkedin.com",
+  "youtube.com", "github.com", "wikipedia.org",
+  "indeed.com", "glassdoor.com", "recruit.co.jp", "rikunabi.com",
+  "mynavi.jp", "doda.jp", "hellowork.mhlw.go.jp",
+  "itmedia.co.jp", "techcrunch.com", "cnet.com", "wired.jp",
+  "pref.tokyo.lg.jp", "metro.tokyo.lg.jp", "city.shibuya.tokyo.jp",
+  "bengo4.com", "keyman.or.jp", "aismiley.jp", "aismiley.co.jp",
+];
 
+// ─────────────────────────────────────────────────────────────────
+// 検索クエリ: 企業固有キーワード「資本金」「設立」「代表取締役」を軸に
+// これらは企業の会社概要ページにしか載らないキーワード
+// ─────────────────────────────────────────────────────────────────
+const SEARCH_QUERIES = [
+  "東京都 渋谷区 株式会社 代表取締役 資本金 設立",
+  "東京都 新宿区 有限会社 代表者 資本金 設立年月",
+  "東京都 港区 株式会社 代表取締役社長 資本金 従業員",
+  "神奈川県 横浜市 株式会社 代表取締役 資本金 設立",
+  "東京都 世田谷区 株式会社 代表取締役 事業内容 資本金",
+  "東京都 品川区 有限会社 代表者 設立 事業内容",
+  "東京都 墨田区 江東区 株式会社 代表取締役 資本金",
+];
+
+// ─────────────────────────────────────────────────────────────────
+// Tavily 検索（exclude_domains で事前フィルタ）
+// ─────────────────────────────────────────────────────────────────
 async function searchWithTavily(
   apiKey: string,
   query: string,
@@ -19,9 +49,10 @@ async function searchWithTavily(
     body: JSON.stringify({
       api_key: apiKey,
       query,
-      search_depth: "basic",
+      search_depth: "advanced",   // basic → advanced に変更
       max_results: maxResults,
       include_answer: false,
+      exclude_domains: EXCLUDE_DOMAINS,
     }),
   });
   if (!res.ok) {
@@ -60,23 +91,8 @@ async function generateWithGemini(
 }
 
 // ─────────────────────────────────────────────────────────────────
-// STEP 1: 企業リストアップ (Tavily × 複数クエリ)
-// 戦略: AI系クエリは外し、企業の「会社概要/お問い合わせ」ページを直撃
-// ─────────────────────────────────────────────────────────────────
-
-const SEARCH_QUERIES = [
-  // 業種×地域で会社概要ページを狙う
-  "東京都 渋谷区 株式会社 会社概要 お問い合わせ 小売業",
-  "東京都 新宿区 有限会社 会社概要 連絡先 サービス業",
-  "東京都 中小企業 株式会社 会社概要 代表取締役 お問い合わせ",
-  "神奈川県 横浜市 中小企業 株式会社 会社概要 採用",
-  "埼玉県 さいたま市 中小企業 株式会社 事業内容 お問い合わせ",
-];
-
-// ─────────────────────────────────────────────────────────────────
 // STEP 2: Gemini で企業情報を構造化抽出
 // ─────────────────────────────────────────────────────────────────
-
 interface CompanyInfo {
   companyName: string;
   industry: string;
@@ -92,36 +108,38 @@ async function extractCompanyInfo(
   geminiKey: string,
   searchResult: { title: string; url: string; content: string }
 ): Promise<CompanyInfo | null> {
-  // URLからドメインを取得してフォールバック用メアドを作成
   let domain = "";
   try {
     domain = new URL(searchResult.url).hostname.replace("www.", "");
   } catch { /* ignore */ }
 
-  // ニュースサイト・官公庁・個人ブログはスキップ
-  const skipDomains = ["pref.", "city.", "news", "nikkei", "yahoo", "google",
-    "wikipedia", "ameblo", "livedoor", "hatena", "note.com", "twitter",
-    "facebook", "instagram", "linkedin", "github", "youtube", "gov."];
-  if (skipDomains.some((s) => searchResult.url.includes(s))) return null;
+  // .co.jp / .jp ドメインは企業ページとして優先信頼
+  const isCojpDomain = domain.endsWith(".co.jp") || domain.endsWith(".jp");
 
-  const prompt = `
-以下の検索結果は日本の企業のWebページです。企業情報をJSONで抽出してください。
+  // タイトルに含まれるニュース・まとめ系キーワードでスキップ
+  const skipTitleWords = ["ニュース", "速報", "まとめ", "ランキング", "一覧", "比較",
+    "おすすめ", "プレスリリース", "転職", "求人", "掲示板"];
+  if (skipTitleWords.some((w) => searchResult.title.includes(w))) return null;
 
-検索結果:
+  const prompt = `以下のWebページから日本の企業情報をJSONで抽出してください。
+
+ページ情報:
 タイトル: ${searchResult.title}
 URL: ${searchResult.url}
-内容: ${searchResult.content.substring(0, 1000)}
+内容: ${searchResult.content.substring(0, 1200)}
 
 抽出ルール:
-- companyName: 会社名（「株式会社」「有限会社」等を含む正式名称。見つからなければタイトルから推測）
-- industry: 業種（小売業/飲食業/IT・Web/士業/製造業/建設業/医療・介護/教育/サービス業 のいずれか）
-- location: 所在地（都道府県+市区町村。見つからなければURLのドメインから推測してよい）
+- companyName: 会社名（「株式会社」「有限会社」等含む正式名称。不明ならタイトルから推測）
+- industry: 業種（小売業/飲食業/IT・Web/士業/製造業/建設業/医療・介護/教育/サービス業のいずれか）
+- location: 都道府県+市区町村（ページから読み取れない場合は "東京都"）
 - estimatedSize: 従業員規模（〜10名/10〜50名/50〜100名/不明）
 - websiteUrl: "${searchResult.url}"をそのまま使用
-- contactEmail: ページ内のメールアドレス。なければ "info@${domain || "company.co.jp"}"
-- contactName: 担当者・代表者名（あれば）
-- researchSummary: この企業がAIを使うとどんな業務を効率化できるか（具体的に50字以内）
-- isCompanyPage: この結果が実際の企業ページかどうか（true/false）
+- contactEmail: ページ内のメアド。なければ "info@${domain || "example.co.jp"}"
+- contactName: 代表者・担当者名（あれば）、なければ空文字
+- researchSummary: AIで効率化できる業務（50字以内）
+- isCompanyPage: 企業・店舗・個人事業・NPOのページならtrue。ニュース・求人・比較サイト・官公庁・個人ブログならfalse
+
+重要: .co.jp や .jp ドメインは基本的に企業サイトなのでisCompanyPage=trueにしてください。
 
 JSON形式のみで回答（コードブロック不要）:
 {
@@ -134,8 +152,7 @@ JSON形式のみで回答（コードブロック不要）:
   "contactName": "",
   "researchSummary": "...",
   "isCompanyPage": true
-}
-`;
+}`;
 
   try {
     const raw = await generateWithGemini(geminiKey, prompt, 700);
@@ -143,11 +160,13 @@ JSON形式のみで回答（コードブロック不要）:
     if (!jsonMatch) return null;
     const parsed = JSON.parse(jsonMatch[0]) as CompanyInfo & { isCompanyPage?: boolean };
 
-    // 企業ページでない / 会社名が空 はスキップ
-    if (!parsed.isCompanyPage) return null;
+    // .co.jp ドメインはGeminiがfalseと言っても信頼する（誤判定対策）
+    if (parsed.isCompanyPage === false && !isCojpDomain) return null;
+
+    // 会社名が空またはニュース系タイトルはスキップ
     if (!parsed.companyName || parsed.companyName.length < 2) return null;
-    // ニュースや行政のページをフィルタ
-    if (parsed.companyName.includes("ニュース") || parsed.companyName.includes("行政")) return null;
+    const skipNames = ["ニュース", "行政", "一覧", "まとめ", "比較"];
+    if (skipNames.some((w) => parsed.companyName.includes(w))) return null;
 
     return parsed;
   } catch {
@@ -158,7 +177,6 @@ JSON形式のみで回答（コードブロック不要）:
 // ─────────────────────────────────────────────────────────────────
 // STEP 3: Gemini でパーソナライズ営業メール生成
 // ─────────────────────────────────────────────────────────────────
-
 interface EmailDraft {
   subject: string;
   body: string;
@@ -168,8 +186,7 @@ async function generateSalesEmail(
   geminiKey: string,
   company: CompanyInfo
 ): Promise<EmailDraft> {
-  const prompt = `
-あなたはAI導入支援サービス「AI駆け込み寺」の営業担当です。
+  const prompt = `あなたはAI導入支援サービス「AI駆け込み寺」の営業担当です。
 以下の企業情報をもとに、自然で押しつけがましくない営業メールを日本語で作成してください。
 
 【企業情報】
@@ -185,17 +202,13 @@ AI活用の余地: ${company.researchSummary}
 - URL: https://ai-kakekomi-dera.vercel.app
 
 【作成ルール】
-1. 件名: 企業固有の課題に言及した30字以内のキャッチーな件名
+1. 件名: 企業固有の課題に言及した30字以内の件名
 2. 本文: 200〜280字。書き出しで企業への具体的な言及、課題提示、サービス提案、CTAを含める
 3. トーン: 丁寧・親しみやすい・押しつけがましくない
 4. 締めは「AI駆け込み寺 / https://ai-kakekomi-dera.vercel.app」
 
-以下のJSON形式のみで回答してください（他のテキスト不要）:
-{
-  "subject": "件名",
-  "body": "本文（\\nで改行）"
-}
-`;
+以下のJSON形式のみで回答（他のテキスト不要）:
+{"subject":"件名","body":"本文（\\nで改行）"}`;
 
   try {
     const raw = await generateWithGemini(geminiKey, prompt, 1000);
@@ -203,14 +216,9 @@ AI活用の余地: ${company.researchSummary}
     if (!jsonMatch) throw new Error("JSON解析失敗");
     return JSON.parse(jsonMatch[0]) as EmailDraft;
   } catch {
-    // フォールバック: 業種別テンプレート
     return generateFallbackEmail(company);
   }
 }
-
-// ─────────────────────────────────────────────────────────────────
-// テンプレートフォールバック（Gemini失敗時）
-// ─────────────────────────────────────────────────────────────────
 
 function generateFallbackEmail(company: CompanyInfo): EmailDraft {
   const industryTemplates: Record<string, { subject: string; painPoint: string }> = {
@@ -226,27 +234,13 @@ function generateFallbackEmail(company: CompanyInfo): EmailDraft {
 
   return {
     subject: template.subject,
-    body: `ご担当者様
-
-突然のご連絡失礼いたします。中小企業向けAI導入支援「AI駆け込み寺」と申します。
-
-${company.industry}の企業様では、${template.painPoint}にAIを活用して大幅な業務削減を実現する事例が増えています。
-
-まずは30分の無料相談で、${company.companyName}様に合ったAI活用方法をご提案できればと思います。
-
-ご興味があればお気軽にご連絡ください。
-
-━━━━━━━━━━━━
-AI駆け込み寺
-https://ai-kakekomi-dera.vercel.app
-━━━━━━━━━━━━`,
+    body: `ご担当者様\n\n突然のご連絡失礼いたします。中小企業向けAI導入支援「AI駆け込み寺」と申します。\n\n${company.industry}の企業様では、${template.painPoint}にAIを活用して大幅な業務削減を実現する事例が増えています。\n\nまずは30分の無料相談で、${company.companyName}様に合ったAI活用方法をご提案できればと思います。\n\nご興味があればお気軽にご連絡ください。\n\n━━━━━━━━━━━━\nAI駆け込み寺\nhttps://ai-kakekomi-dera.vercel.app\n━━━━━━━━━━━━`,
   };
 }
 
 // ─────────────────────────────────────────────────────────────────
 // メインアクション: 実AI営業エージェント実行
 // ─────────────────────────────────────────────────────────────────
-
 export const runSalesAgent = action({
   args: {
     targetArea: v.optional(v.string()),
@@ -263,9 +257,17 @@ export const runSalesAgent = action({
       leadsCreated: 0,
       draftsCreated: 0,
       errors: [] as string[],
+      // デバッグ情報（0件時の原因特定用）
+      debug: {
+        searchResultsTotal: 0,
+        skippedByTitle: 0,
+        skippedNotCompany: 0,
+        skippedDuplicate: 0,
+        processedUrls: [] as string[],
+      },
     };
 
-    // Prospectorエージェントのステータス更新
+    // エージェントのステータス更新
     const agents = await ctx.runQuery(api.agents.list);
     const prospector = agents.find((a) => a.name === "Prospector");
     const researcher = agents.find((a) => a.name === "Researcher");
@@ -286,11 +288,12 @@ export const runSalesAgent = action({
     // ── STEP 1: Tavily で企業を検索 ──
     const allSearchResults: { title: string; url: string; content: string }[] = [];
 
-    for (const query of SEARCH_QUERIES.slice(0, 3)) {
+    for (const query of SEARCH_QUERIES.slice(0, 4)) {
       try {
-        const searchResults = await searchWithTavily(tavilyKey, query, 3);
+        const searchResults = await searchWithTavily(tavilyKey, query, 5);
         allSearchResults.push(...searchResults);
-        if (allSearchResults.length >= maxLeads * 2) break;
+        results.debug.searchResultsTotal += searchResults.length;
+        if (allSearchResults.length >= maxLeads * 4) break;
       } catch (e) {
         results.errors.push(`検索エラー: ${String(e)}`);
       }
@@ -314,10 +317,21 @@ export const runSalesAgent = action({
       if (processedCount >= maxLeads) break;
 
       // 重複チェック
-      if (result.url && existingUrls.has(result.url)) continue;
+      if (result.url && existingUrls.has(result.url)) {
+        results.debug.skippedDuplicate++;
+        continue;
+      }
+
+      // タイトルでニュース系をスキップ
+      const skipTitleWords = ["ニュース", "速報", "まとめ", "ランキング", "一覧", "比較", "おすすめ", "転職", "求人"];
+      if (skipTitleWords.some((w) => result.title.includes(w))) {
+        results.debug.skippedByTitle++;
+        continue;
+      }
+
+      results.debug.processedUrls.push(result.url);
 
       try {
-        // Researcherステータス更新
         if (researcher) {
           await ctx.runMutation(api.agents.updateStatus, {
             id: researcher._id,
@@ -330,21 +344,13 @@ export const runSalesAgent = action({
           });
         }
 
-        // Gemini で企業情報を構造化
         const companyInfo = await extractCompanyInfo(geminiKey, result);
-        if (!companyInfo) continue;
+        if (!companyInfo) {
+          results.debug.skippedNotCompany++;
+          continue;
+        }
 
-        // 東京・首都圏フィルター（緩めにチェック）
-        const isTargetArea =
-          companyInfo.location.includes("東京") ||
-          companyInfo.location.includes("神奈川") ||
-          companyInfo.location.includes("埼玉") ||
-          companyInfo.location.includes("千葉") ||
-          companyInfo.location === "";
-
-        if (!isTargetArea) continue;
-
-        // Lead 作成
+        // Lead 作成（ロケーションフィルターは撤廃 — Geminiに任せる）
         const leadId = await ctx.runMutation(api.sales.createLead, {
           companyName: companyInfo.companyName,
           industry: companyInfo.industry,
@@ -360,7 +366,6 @@ export const runSalesAgent = action({
         results.leadsCreated++;
         existingUrls.add(companyInfo.websiteUrl || result.url);
 
-        // Copywriterステータス更新
         if (copywriter) {
           await ctx.runMutation(api.agents.updateStatus, {
             id: copywriter._id,
@@ -373,10 +378,8 @@ export const runSalesAgent = action({
           });
         }
 
-        // Gemini でメール生成
         const emailDraft = await generateSalesEmail(geminiKey, companyInfo);
 
-        // EmailDraft 作成
         await ctx.runMutation(api.sales.createEmailDraft, {
           leadId,
           subject: emailDraft.subject,
@@ -387,8 +390,8 @@ export const runSalesAgent = action({
         results.draftsCreated++;
         processedCount++;
 
-        // 過負荷防止: 少し待機
-        await new Promise((r) => setTimeout(r, 500));
+        // 過負荷防止
+        await new Promise((r) => setTimeout(r, 300));
 
       } catch (e) {
         results.errors.push(`処理エラー [${result.url}]: ${String(e)}`);

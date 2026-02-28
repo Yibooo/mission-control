@@ -59,17 +59,25 @@ export default function SalesPage() {
     setAgentLog([]);
     try {
       if (runMode === "real") {
-        setAgentLog(["🔍 Tavily で首都圏の企業を検索中..."]);
+        setAgentLog(["🔍 Tavily で首都圏の企業を検索中（advance検索 + ニュースドメイン除外）..."]);
         const result = await runRealAgent({ targetArea: "東京都・首都圏", maxLeads: 5 });
         const msgs = [
           `✅ 完了: ${result.leadsCreated}社のリードを追加`,
           `📝 ${result.draftsCreated}件のメール草稿を生成`,
+          `🔎 検索結果合計: ${result.debug.searchResultsTotal}件`,
+          `🚫 タイトルフィルタ除外: ${result.debug.skippedByTitle}件`,
+          `🏢 企業ページ外として除外: ${result.debug.skippedNotCompany}件`,
+          `♻️ 重複スキップ: ${result.debug.skippedDuplicate}件`,
         ];
-        if (result.errors.length > 0) msgs.push(`⚠️ エラー ${result.errors.length}件`);
-        setAgentLog(msgs);
-        if (result.leadsCreated === 0) {
-          alert("⚠️ リードが見つかりませんでした。検索結果に企業情報が含まれなかった可能性があります。モックモードでお試しください。");
+        if (result.errors.length > 0) {
+          msgs.push(`⚠️ エラー ${result.errors.length}件`);
+          result.errors.slice(0, 3).forEach(e => msgs.push(`  └ ${e}`));
         }
+        if (result.debug.processedUrls.length > 0) {
+          msgs.push(`🌐 処理したURL:`);
+          result.debug.processedUrls.slice(0, 5).forEach(u => msgs.push(`  └ ${u}`));
+        }
+        setAgentLog(msgs);
       } else {
         setAgentLog(["🎭 モックデータを生成中..."]);
         const result = await runMock({ targetArea: "東京都・首都圏", count: 3 });
