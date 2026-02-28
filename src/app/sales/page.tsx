@@ -446,20 +446,34 @@ export default function SalesPage() {
                             🔗 フォームを開く
                           </a>
                         )}
-                        {/* ── Gmail 経由（メアドがある場合） ── */}
+                        {/* ── Gmail / Yahoo Mail 経由（メアドがある場合） ── */}
                         {lead.contactEmail && (
-                          <a
-                            href={buildGmailUrl(
-                              lead.contactEmail,
-                              draft.subject,
-                              draft.editedBody ?? draft.body
-                            )}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ ...btnStyle("#ea4335"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                          >
-                            <span>📧</span> Gmailで開く
-                          </a>
+                          <>
+                            <a
+                              href={buildGmailUrl(
+                                lead.contactEmail,
+                                draft.subject,
+                                draft.editedBody ?? draft.body
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ ...btnStyle("#ea4335"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            >
+                              <span>📧</span> Gmailで開く
+                            </a>
+                            <a
+                              href={buildYahooMailUrl(
+                                lead.contactEmail,
+                                draft.subject,
+                                draft.editedBody ?? draft.body
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ ...btnStyle("#6001d2"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            >
+                              <span>📨</span> Yahoo Mailで開く
+                            </a>
+                          </>
                         )}
                         <button onClick={() => handleApproveAndSend(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#10b981") }}>
                           ✅ 送信完了としてマーク
@@ -480,20 +494,34 @@ export default function SalesPage() {
                             {submittingDraft === draft._id ? "⏳ 送信中..." : "🤖 自動送信"}
                           </button>
                         )}
-                        {/* Gmail ボタン（メアドがある場合） */}
+                        {/* Gmail / Yahoo Mail ボタン（メアドがある場合） */}
                         {lead.contactEmail && (
-                          <a
-                            href={buildGmailUrl(
-                              lead.contactEmail,
-                              draft.subject,
-                              draft.editedBody ?? draft.body
-                            )}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ ...btnStyle("#ea4335"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                          >
-                            <span>📧</span> Gmailで開く
-                          </a>
+                          <>
+                            <a
+                              href={buildGmailUrl(
+                                lead.contactEmail,
+                                draft.subject,
+                                draft.editedBody ?? draft.body
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ ...btnStyle("#ea4335"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            >
+                              <span>📧</span> Gmailで開く
+                            </a>
+                            <a
+                              href={buildYahooMailUrl(
+                                lead.contactEmail,
+                                draft.subject,
+                                draft.editedBody ?? draft.body
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ ...btnStyle("#6001d2"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            >
+                              <span>📨</span> Yahoo Mailで開く
+                            </a>
+                          </>
                         )}
                         <button
                           onClick={() => handleCopyText(`件名: ${draft.subject}\n\n${draft.editedBody ?? draft.body}`, draft._id)}
@@ -726,4 +754,16 @@ function buildGmailUrl(to: string, subject: string, body: string): string {
     body,
   });
   return `https://mail.google.com/mail/?${params.toString()}`;
+}
+
+// ─── ヘルパー: Yahoo Mail 構成URL を生成 ───
+// https://compose.mail.yahoo.co.jp/?To=...&Subject=...&Body=...
+// → Yahoo Japan Mail の作成画面が宛先・件名・本文入力済みで開く
+function buildYahooMailUrl(to: string, subject: string, body: string): string {
+  const params = new URLSearchParams({
+    To: to,
+    Subject: subject,
+    Body: body,
+  });
+  return `https://compose.mail.yahoo.co.jp/?${params.toString()}`;
 }
