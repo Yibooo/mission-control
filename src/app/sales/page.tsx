@@ -427,8 +427,9 @@ export default function SalesPage() {
                         </button>
                       </>
                     ) : lead.status === "captcha_required" ? (
-                      // CAPTCHA有り → 手動送信ヘルパー
+                      // CAPTCHA有り → フォーム手動送信 or Gmail送信
                       <>
+                        {/* ── フォーム経由（CAPTCHA手動突破） ── */}
                         <button
                           onClick={() => handleCopyText(`件名: ${draft.subject}\n\n${draft.editedBody ?? draft.body}`, draft._id)}
                           style={{ ...btnStyle("#6366f1") }}
@@ -445,15 +446,30 @@ export default function SalesPage() {
                             🔗 フォームを開く
                           </a>
                         )}
+                        {/* ── Gmail 経由（メアドがある場合） ── */}
+                        {lead.contactEmail && (
+                          <a
+                            href={buildGmailUrl(
+                              lead.contactEmail,
+                              draft.subject,
+                              draft.editedBody ?? draft.body
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ ...btnStyle("#ea4335"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                          >
+                            <span>📧</span> Gmailで開く
+                          </a>
+                        )}
                         <button onClick={() => handleApproveAndSend(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#10b981") }}>
-                          ✅ 手動送信完了としてマーク
+                          ✅ 送信完了としてマーク
                         </button>
                         <button onClick={() => handleReject(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#ef4444") }}>
                           ❌ 却下
                         </button>
                       </>
                     ) : (
-                      // CAPTCHA無し → 自動送信 or 承認
+                      // CAPTCHA無し → 自動送信 or Gmail送信
                       <>
                         {lead.contactFormUrl && (
                           <button
@@ -463,6 +479,21 @@ export default function SalesPage() {
                           >
                             {submittingDraft === draft._id ? "⏳ 送信中..." : "🤖 自動送信"}
                           </button>
+                        )}
+                        {/* Gmail ボタン（メアドがある場合） */}
+                        {lead.contactEmail && (
+                          <a
+                            href={buildGmailUrl(
+                              lead.contactEmail,
+                              draft.subject,
+                              draft.editedBody ?? draft.body
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ ...btnStyle("#ea4335"), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                          >
+                            <span>📧</span> Gmailで開く
+                          </a>
                         )}
                         <button
                           onClick={() => handleCopyText(`件名: ${draft.subject}\n\n${draft.editedBody ?? draft.body}`, draft._id)}
@@ -660,4 +691,17 @@ function btnStyle(color: string): React.CSSProperties {
     fontWeight: 600,
     cursor: "pointer",
   };
+}
+
+// ─── ヘルパー: Gmail 構成URL を生成 ───
+// https://mail.google.com/mail/?view=cm&to=...&su=...&body=...
+// → Gmail の作成画面が宛先・件名・本文入力済みで開く（APIキー不要）
+function buildGmailUrl(to: string, subject: string, body: string): string {
+  const params = new URLSearchParams({
+    view: "cm",
+    to,
+    su: subject,
+    body,
+  });
+  return `https://mail.google.com/mail/?${params.toString()}`;
 }
