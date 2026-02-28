@@ -1,24 +1,26 @@
 # Phase 2 要件定義書 — AI駆け込み寺 営業AIエージェント
 
-> **ステータス**: Phase 2-B 実装中 / Phase 2-D（フォーム送信PIVOT）設計中
+> **ステータス**: Phase 2-D 実装完了 / Phase 2-E（返信トラッキング）準備中
 > **最終更新**: 2026-02-28
 > **リポジトリ**: https://github.com/Yibooo/mission-control
+> **本番URL**: https://mission-control-xi-sepia.vercel.app/sales
 
 ---
 
 ## 目次
 
 1. [背景・目的](#1-背景目的)
-2. [戦略PIVOT: メール送信 → フォーム送信](#2-戦略pivot-メール送信--フォーム送信)
-3. [システム全体アーキテクチャ](#3-システム全体アーキテクチャ)
-4. [営業AIエージェント仕様](#4-営業aiエージェント仕様)
-5. [ワークフロー詳細（フォーム送信版）](#5-ワークフロー詳細フォーム送信版)
-6. [データモデル（DB設計）](#6-データモデルdb設計)
-7. [UI/UX仕様](#7-uiux仕様)
-8. [Phase 3 エージェント可視化UI要件](#8-phase-3-エージェント可視化ui要件)
-9. [API・外部サービス一覧](#9-api外部サービス一覧)
-10. [実装フェーズ（全体ステップ）](#10-実装フェーズ全体ステップ)
-11. [必要なAPIキー一覧](#11-必要なapiキー一覧)
+2. [業界PIVOT: 首都圏中小企業 → 関東圏老舗旅館](#2-業界pivot)
+3. [戦略PIVOT: メール送信 → フォーム送信](#3-戦略pivot)
+4. [システム全体アーキテクチャ](#4-システム全体アーキテクチャ)
+5. [営業AIエージェント仕様](#5-営業aiエージェント仕様)
+6. [ワークフロー詳細（フォーム送信版）](#6-ワークフロー詳細)
+7. [データモデル（DB設計）](#7-データモデルdb設計)
+8. [UI/UX仕様](#8-uiux仕様)
+9. [Phase 3 エージェント可視化UI要件](#9-phase-3-エージェント可視化ui要件)
+10. [API・外部サービス一覧](#10-api外部サービス一覧)
+11. [実装フェーズ（全体ステップ）](#11-実装フェーズ全体ステップ)
+12. [必要なAPIキー一覧](#12-必要なapiキー一覧)
 
 ---
 
@@ -30,58 +32,90 @@
 
 **目的**: 営業プロセスを自動化するAIエージェントを構築し、1日あたりの営業接触件数を増やしながら、人間は「最終承認」にのみ集中できる体制を作る。
 
-**ターゲット**: 東京・首都圏の中小企業（業種不問、従業員5〜100名程度）
+---
+
+## 2. 業界PIVOT
+
+### Before → After
+
+| 軸 | ❌ 旧ターゲット | ✅ 新ターゲット |
+|---|---|---|
+| **業界** | 首都圏中小企業（業種不問） | **関東圏の老舗旅館・温泉旅館** |
+| **エリア** | 東京都・首都圏 | 箱根・草津・伊香保・那須・鬼怒川・熱海・湯河原・修善寺・四万・日光 |
+| **規模** | 従業員5〜100名 | 家族経営〜50名程度の中小旅館 |
+| **AI活用余地** | 幅広いが刺さりにくい | 予約返信・口コミ返信・多言語対応・マニュアル整備など明確 |
+
+### 2.1 旅館業界を選んだ理由
+
+1. **痛みが明確**: 予約・問い合わせへの返信、OTA口コミへの返信文作成、外国人対応（多言語）など、AIで効率化できる定型業務が豊富
+2. **DX遅れ**: 伝統的業界のためAI活用率が低く、競合が少ない初期ユーザーを取りやすい
+3. **公式サイト存在率が高い**: OTAに依存しつつも独自ドメインサイトを持つ旅館が多く、フォーム経由でのアプローチが可能
+4. **検索で特定しやすい**: 温泉地名 + 旅館 + 公式サイトで直接ヒットさせられる
+
+### 2.2 ターゲット旅館プロファイル
+
+```
+エリア    : 関東圏主要温泉地（箱根・草津・那須・鬼怒川・熱海 等）
+規模      : 従業員5〜50名、客室10〜50室程度
+課題      : 予約・問い合わせ対応の工数削減、多言語対応、口コミ返信の自動化
+除外      : じゃらん・一休・楽天トラベル等のOTA（公式サイトではないため）
+除外      : ランキング・まとめ・比較サイト（旅行メディア）
+```
+
+### 2.3 旅館向けAI活用提案の4本柱
+
+| 活用シーン | 効果 |
+|---|---|
+| 予約・問い合わせへの自動返信 | メール・電話対応の負担を最大70%削減 |
+| 口コミ返信文の自動生成 | Google・じゃらん・楽天の返信を1分で作成 |
+| 多言語対応（外国人ゲスト） | 英語・中国語・韓国語のFAQ・案内を即時翻訳 |
+| プラン・客室案内コンテンツ生成 | 季節限定プランの説明文・SNS投稿を自動作成 |
 
 ---
 
-## 2. 戦略PIVOT: メール送信 → フォーム送信
+## 3. 戦略PIVOT: メール送信 → フォーム送信
 
-### 2.1 なぜPIVOTするのか
+### 3.1 なぜPIVOTするのか
 
 | 比較軸 | ❌ メール送信（旧） | ✅ フォーム送信（新） |
 |---|---|---|
 | **メアド取得率** | 公開メアドを持つ企業は少ない（~30%） | 問い合わせフォームはほぼ全企業が持つ（~90%） |
 | **到達率** | スパムフィルタに弾かれやすい | フォーム経由は正規の問い合わせとして処理される |
 | **信頼性** | 不審なメールとして無視されやすい | 自社フォームへの入力=企業が用意した窓口 |
-| **技術的難易度** | Gmail API認証が複雑 | Playwright等で自動化可能 |
-| **スケーラビリティ** | メアドが見つからない企業はスキップ | ほぼ全企業にアプローチ可能 |
+| **技術的難易度** | Gmail API認証が複雑 | Firecrawl actions で自動化可能 |
 
-### 2.2 フォーム送信の仕組み
-
-```
-従来: 企業サイト → メアド抽出 → Gmail API で送信
-新方式: 企業サイト → お問い合わせフォームURL発見 → フォームフィールドを解析
-                    → 名前・メアド・問い合わせ内容を入力 → 送信ボタンをクリック
-```
-
-### 2.3 入力するフォームフィールドの設計
-
-| フィールド | 入力内容 | 備考 |
-|---|---|---|
-| `お名前` | `AI駆け込み寺 代表` | 固定値 |
-| `メールアドレス` | `info@ai-kakekomi-dera.vercel.app` | 送信者アドレス（返信受付用） |
-| `会社名` | `AI駆け込み寺` | 固定値 |
-| `お問い合わせ件名` | AIが生成した件名 | 企業ごとにパーソナライズ |
-| `お問い合わせ内容` | AIが生成した営業文章 | 企業ごとにパーソナライズ（200〜280字） |
-| `電話番号` | 省略 or `未記入` | 任意フィールドなら空欄のまま |
-
-### 2.4 CAPTCHA・ボット対策への対応方針
+### 3.2 CAPTCHA・ボット対策への対応方針
 
 ```
 ⚠️ 重要: CAPTCHAが検出された場合は即座にスキップ（バイパスは行わない）
-- hCaptcha / reCAPTCHA / 画像認証 が表示された場合 → skip
-- 代わりにその企業を「CAPTCHA_REQUIRED」ステータスで保存
-- 将来的に人間が手動で送信できるよう情報を保持
+
+検出対象:
+- reCAPTCHA v2 / v3（Google）
+- hCaptcha
+- Snow Monkey Forms の nonce
+- WordPress CF7 の wpcf7_sec_id
+- mw-wp-form
+- 画像認証
+
+対応:
+→ status: "captcha_required" で保存
+→ /sales ページで「手動送信ヘルパー」として表示
+→ ユーザーが「📋 文章をコピー」→「🔗 フォームを開く」で手動送信
 ```
+
+### 3.3 現実的な見立て
+
+> 調査した限り、関東圏の旅館サイトの約80〜90%はCAPTCHA付き（WordPress + CF7 / Snow Monkey Forms が主流）。
+> 完全自動化は難しいが、「フォームURL特定 + 文章コピー + 手動貼り付け」のハイブリッドフローで十分に価値がある。
 
 ---
 
-## 3. システム全体アーキテクチャ
+## 4. システム全体アーキテクチャ
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                  フロントエンド (mission-control)              │
-│  Next.js 16 + Convex + TypeScript + Tailwind                  │
+│  Next.js 16 + Convex + TypeScript + Tailwind CSS v4           │
 │                                                              │
 │  /sales          承認キュー・リード管理・送信ログ              │
 │  /team           エージェント状態モニタリング（Phase 3）       │
@@ -92,265 +126,282 @@
 │                                                              │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐   │
 │  │ Prospector  │  │  Researcher  │  │   Copywriter     │   │
-│  │ (企業発見)  │  │ (フォームURL │  │  (問い合わせ文   │   │
-│  │             │  │  調査)       │  │   生成)          │   │
-│  └──────┬──────┘  └──────┬───────┘  └────────┬─────────┘   │
-│         │                │                    │              │
-│  ┌──────▼──────┐  ┌──────▼───────┐  ┌────────▼─────────┐   │
-│  │ Tavily API  │  │  Firecrawl   │  │   Gemini API     │   │
-│  │ (Web検索)   │  │(フォーム抽出)│  │  (文章生成)      │   │
+│  │ (旅館発見)  │  │ (フォームURL │  │  (問い合わせ文   │   │
+│  │ Tavily検索  │  │  Firecrawl)  │  │   Gemini生成)    │   │
 │  └─────────────┘  └──────────────┘  └──────────────────┘   │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  FormSubmitter Agent（承認後のみ実行）                │   │
-│  │  Playwright / Steel.dev でフォーム自動入力・送信      │   │
+│  │  FormSubmitter Agent（承認後・CAPTCHA無し旅館のみ）   │   │
+│  │  Firecrawl actions でフォーム自動入力・送信           │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  Tracker Agent                                        │   │
+│  │  Tracker Agent（Phase 2-E）                           │   │
 │  │  返信メールの監視（info@宛の受信箱をポーリング）        │   │
 │  └──────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
                       │
 ┌─────────────────────▼────────────────────────────────────────┐
 │               Convex DB (リアルタイムDB)                       │
-│  agents / leads / contactDrafts / salesLogs                  │
+│  agents / leads / emailDrafts / salesLogs                    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. 営業AIエージェント仕様
+## 5. 営業AIエージェント仕様
 
-### 4.1 エージェント構成（PIVOT後）
+### 5.1 エージェント構成
 
-| エージェント名 | 役割 | 使用API | Phase |
+| エージェント名 | 役割 | 使用API | ステータス |
 |---|---|---|---|
-| **Prospector** | ターゲット企業のリストアップ | Tavily Search API | 2-B ✅ |
-| **Researcher** | お問い合わせフォームURLの特定・フォーム構造解析 | Firecrawl | 2-D |
-| **Copywriter** | パーソナライズされた問い合わせ文章生成 | Gemini API ✅ | 2-B ✅ |
-| **FormSubmitter** | フォームへの自動入力・送信（承認後のみ） | Playwright / Steel.dev | 2-D |
-| **Tracker** | 返信メール監視・フォローアップ管理 | Gmail API（受信監視のみ） | 2-E |
+| **Prospector** | 関東圏の旅館サイトをリストアップ | Tavily Search API | ✅ 完了 |
+| **Researcher** | お問い合わせフォームURLの特定・フォーム構造解析 | Firecrawl | ✅ 完了（実用精度改善中） |
+| **Copywriter** | パーソナライズされた問い合わせ文章生成 | Gemini API | ✅ 完了 |
+| **FormSubmitter** | フォームへの自動入力・送信（CAPTCHA無しのみ） | Firecrawl actions | ✅ 完了（実運用: 手動補助） |
+| **Tracker** | 返信メール監視・フォローアップ管理 | Gmail API（受信監視のみ） | 🔲 Phase 2-E |
 
-### 4.2 ターゲット条件
+### 5.2 検索クエリ設計（旅館特化）
+
+```typescript
+const SEARCH_QUERIES = [
+  "箱根温泉 旅館 公式サイト お問い合わせ",
+  "草津温泉 旅館 公式サイト お問い合わせ 宿泊",
+  "伊香保温泉 旅館 公式サイト お問い合わせ",
+  "那須温泉 旅館 公式サイト お問い合わせ",
+  "鬼怒川温泉 旅館 公式サイト お問い合わせ",
+  "熱海温泉 旅館 公式サイト お問い合わせ",
+  "湯河原温泉 旅館 公式サイト お問い合わせ",
+  "修善寺温泉 旅館 公式サイト お問い合わせ",
+  "四万温泉 旅館 公式サイト お問い合わせ",
+  "日光温泉 旅館 公式サイト お問い合わせ",
+];
+
+// 除外ドメイン（OTA・まとめ・SNS等 26ドメイン）
+const EXCLUDE_DOMAINS = [
+  "jalan.net", "ikyu.com", "relux.jp", "booking.com",
+  "tripadvisor.jp", "travel.rakuten.co.jp", ...
+];
+```
+
+### 5.3 旅館判定ロジック
 
 ```
-エリア  : 東京都・首都圏（東京・神奈川・埼玉・千葉）
-業種    : 不問（製造・小売・サービス・飲食・医療・士業 等）
-規模    : 従業員5〜100名程度の中小企業
-優先度  : お問い合わせフォームを持つ企業（≒ほぼ全企業）
-スキップ: CAPTCHA必須のフォーム（人間承認キューへ回す）
+優先順位:
+1. URL/title に旅館キーワードが含まれる → 旅館と判定（高精度）
+   Keywords: ryokan/旅館/onsen/温泉/yado/宿/hakone/箱根/kusatsu/草津 等
+2. Gemini による isRyokan 判定（補助）
+3. Gemini 失敗時 → URL旅館判定を優先してフォールバック
+
+→ この3層構造により "0リード問題" を解消
 ```
-
-### 4.3 生成する問い合わせ文章の設計方針
-
-- **件名**: 企業固有の課題に言及（例: 「在庫管理の自動化で月10時間削減できます」）
-- **本文**:
-  - 書き出し: 企業への具体的な言及（サービス名・業種・強みに触れる）
-  - 課題提示: 同業他社がAIで解決している事例
-  - 提案: AI駆け込み寺のサービス（無料相談 or スターターパック）
-  - CTA: URLとともに「まずは30分無料でご相談ください」
-- **文字数**: 200〜300字（問い合わせフォームに収まる長さ）
-- **トーン**: 丁寧だが押しつけがましくない
 
 ---
 
-## 5. ワークフロー詳細（フォーム送信版）
+## 6. ワークフロー詳細
 
 ```
 [STEP 1] エージェント起動（管理画面）
-  ↓ 対象条件（エリア・業種・件数）を入力
+  ↓ 「🚀 エージェント起動（AI実行モード）」をクリック
 
-[STEP 2] Prospector Agent — 企業リストアップ
-  ↓ Tavily API で「株式会社 代表取締役 資本金 設立 東京都」等を検索
-  ↓ ニュース・求人サイト・SNSを自動除外（exclude_domains）
-  ↓ 20〜50社の候補を leads テーブルに保存
+[STEP 2] Prospector Agent — 旅館リストアップ
+  ↓ Tavily API で「箱根温泉 旅館 公式サイト お問い合わせ」等を検索
+  ↓ OTA・まとめサイトを自動除外（26ドメイン）
+  ↓ 20件の候補を取得（1クエリ5件 × 4クエリ）
   ↓ 重複チェック・既接触済みチェック
 
 [STEP 3] Researcher Agent — フォームURL特定
-  ↓ Firecrawl で各企業サイトをクロール
-  ↓ 「お問い合わせ」「contact」「inquiry」等のリンクを発見
-  ↓ フォームのフィールド構造を解析（name/email/tel/subject/body の対応確認）
-  ↓ CAPTCHA検出 → status: "captcha_required" でスキップ（手動送信キューへ）
+  ↓ Phase A: Firecrawl でトップページのリンク一覧を取得
+  ↓ "contact" / "お問い合わせ" 等のキーワードでフォームページを特定
+  ↓ Phase B: Firecrawl でフォームページのHTMLを取得
+  ↓ Phase C: CAPTCHA / WordPress nonce を検出
+  ↓ Phase D: Gemini でフォームのCSSセレクタを抽出
   ↓ leads.contactFormUrl, leads.formFields に保存
+  ↓ CAPTCHA検出 → status: "captcha_required"（手動送信キューへ）
 
-[STEP 4] Copywriter Agent — 問い合わせ文章生成
-  ↓ Gemini で企業固有のパーソナライズ文章を生成
-  ↓ contactDrafts テーブルに保存（approvalStatus: "pending"）
+[STEP 4] Copywriter Agent — 旅館向け営業文章生成
+  ↓ Gemini で旅館固有のパーソナライズ文章を生成
+  ↓ 旅館業界特有の課題（予約返信・口コミ・多言語）に言及
+  ↓ emailDrafts テーブルに保存（approvalStatus: "pending"）
 
-[STEP 5] ⚠️ HUMAN-IN-THE-LOOP — 事前チェック（必須・送信前に人間が確認）
+[STEP 5] ⚠️ HUMAN-IN-THE-LOOP — 人間による最終確認
   ↓ /sales ページに承認待ちカードとして表示
-  ↓ 人間が確認: 会社名・フォームURL・件名・本文プレビュー
-  ↓ [承認して送信] / [編集して承認] / [却下] の3択
-  ↓ 承認しない限り FormSubmitter は実行されない
+  ↓ 旅館名・フォームURL・件名・本文プレビューを確認
 
-[STEP 6] FormSubmitter Agent — フォーム自動入力・送信（承認後のみ）
-  ↓ Playwright で企業のお問い合わせフォームを開く
-  ↓ 名前・メアド・件名・本文を入力
-  ↓ 送信ボタンをクリック
-  ↓ 送信完了の確認メッセージを検出 → salesLogs に記録
-  ↓ leads.status を "contacted" に更新
+  ─ CAPTCHA有り（大多数）─────────────────────────────────────
+  ↓ 「📋 文章をコピー」→「🔗 フォームを開く」→ 手動貼り付け送信
+  ↓ 「✅ 手動送信完了としてマーク」でステータス更新
+  ──────────────────────────────────────────────────────────────
 
-[STEP 7] Tracker Agent — 返信監視（受信箱ポーリング）
+  ─ CAPTCHA無し（少数）────────────────────────────────────────
+  ↓ 「🤖 自動送信」ボタンで Firecrawl actions による自動送信
+  ↓ 送信完了確認テキストを検出 → ログ記録 → status: "contacted"
+  ──────────────────────────────────────────────────────────────
+
+[STEP 6] Tracker Agent（Phase 2-E）— 返信監視
   ↓ info@ai-kakekomi-dera.vercel.app 宛の受信箱を監視
-  ↓ 返信検知 → Dashboard通知 → leads.status を "replied" に更新
-  ↓ 7日間返信なし → フォローアップ問い合わせ文章を自動生成
+  ↓ 返信検知 → leads.status を "replied" に更新
+  ↓ 7日間返信なし → フォローアップ文章を自動生成・承認キューへ
 ```
 
 ---
 
-## 6. データモデル（DB設計）
+## 7. データモデル（DB設計）
 
-### 6.1 `leads` テーブル（PIVOT対応の拡張）
+### 7.1 `leads` テーブル
 
 ```typescript
 {
-  companyName: string,
-  industry: string,
-  location: string,
-  estimatedSize: string,
+  companyName: string,        // 旅館名
+  industry: string,           // "宿泊業・旅館"
+  location: string,           // "神奈川県箱根温泉" 等
+  estimatedSize: string,      // "〜50名"
   websiteUrl: string,
 
-  // ── PIVOT追加フィールド ──────────────────────
-  contactFormUrl: optional string,    // お問い合わせフォームのURL
-  formFields: optional string,        // フォームフィールド構造（JSON文字列）
-                                      // 例: {"name":"お名前","email":"メール","body":"お問い合わせ内容"}
-  // ────────────────────────────────────────────
+  // Phase 2-D 追加フィールド
+  contactFormUrl?: string,    // お問い合わせフォームURL（Firecrawl で発見）
+  formFields?: string,        // フォームフィールド構造（JSON文字列）
+                              // ContactFormStructure の全体を保存
 
-  contactEmail: optional string,      // メアドがあれば保持（将来のフォールバック用）
-  contactName: optional string,
-  researchSummary: string,
+  contactEmail: string,       // メアド（info@domain の推測値 or 実際のアドレス）
+  researchSummary?: string,
 
   status: "researching"
-       | "draft_ready"          // 文章生成済み（承認待ち）
-       | "captcha_required"     // CAPTCHAで自動送信不可（手動送信待ち）
-       | "contacted"            // 送信済み
-       | "replied"              // 返信あり
-       | "negotiating"          // 商談中
-       | "closed_won"           // 成約
-       | "closed_lost"          // NG
-       | "rejected",            // 人間が却下
+       | "draft_ready"         // 文章生成済み（承認待ち）
+       | "captcha_required"    // CAPTCHA検出 → 手動送信待ち ← Phase 2-D 追加
+       | "contacted"
+       | "replied"
+       | "negotiating"
+       | "closed_won"
+       | "closed_lost"
+       | "rejected",
 
-  source: string,
-  notes: optional string,
+  source: string,              // "tavily_search"
   createdAt: number,
   updatedAt: number,
 }
 ```
 
-### 6.2 `contactDrafts` テーブル（旧 emailDrafts をリネーム・拡張）
+### 7.2 `emailDrafts` テーブル（フォーム送信対応に拡張）
 
 ```typescript
 {
   leadId: Id<"leads">,
+  subject: string,
+  body: string,
+  editedBody?: string,         // 人間が編集した場合
 
-  // 送信内容
-  subject: string,                    // 件名
-  body: string,                       // 問い合わせ本文
-  senderName: string,                 // 送信者名（"AI駆け込み寺 代表"）
-  senderEmail: string,                // 返信受付メアド
+  approvalStatus: "pending"
+                | "approved"
+                | "rejected"
+                | "sent"
+                | "submitted"  // フォーム経由で送信済み ← Phase 2-D 追加
+                | "failed",    // 送信失敗 ← Phase 2-D 追加
 
-  approvalStatus: "pending"           // 承認待ち（人間レビュー必要）
-                | "approved"          // 承認済み
-                | "rejected"          // 却下
-                | "submitted"         // フォーム送信済み
-                | "failed",           // 送信失敗（エラー保存）
+  approvedAt?: number,
+  sentAt?: number,
+  submittedAt?: number,        // フォーム送信日時 ← Phase 2-D 追加
+  failureReason?: string,      // 失敗理由 ← Phase 2-D 追加
 
-  editedBody: optional string,        // 人間が編集した場合
-  approvedAt: optional number,
-  submittedAt: optional number,
-  failureReason: optional string,     // 送信失敗時のエラー内容
-
-  generatedBy: string,                // "agent:Copywriter(Gemini)"
+  generatedBy?: string,        // "agent:Copywriter(Gemini)"
   createdAt: number,
 }
 ```
 
-### 6.3 `salesLogs` テーブル（イベント追加）
+### 7.3 `salesLogs` イベント一覧
 
 ```typescript
-{
-  leadId: Id<"leads">,
-  draftId: optional Id<"contactDrafts">,
-  event: "lead_created"
-       | "form_url_found"             // フォームURL発見
-       | "captcha_detected"           // CAPTCHA検出 → スキップ
-       | "draft_generated"
-       | "approved"
-       | "rejected"
-       | "form_submitted"             // フォーム送信成功
-       | "submission_failed"          // フォーム送信失敗
-       | "replied"
-       | "follow_up_scheduled"
-       | "meeting_scheduled",
-  detail: optional string,
-  performedBy: string,
-  createdAt: number,
+event: "lead_created"
+     | "research_done"
+     | "form_url_found"         // フォームURL発見 ← Phase 2-D 追加
+     | "captcha_detected"       // CAPTCHA検出 ← Phase 2-D 追加
+     | "draft_generated"
+     | "approved" | "rejected"
+     | "sent"
+     | "form_submitted"         // フォーム経由で送信成功 ← Phase 2-D 追加
+     | "submission_failed"      // フォーム送信失敗 ← Phase 2-D 追加
+     | "opened" | "replied"
+     | "follow_up_scheduled"
+     | "meeting_scheduled"
+```
+
+### 7.4 `ContactFormStructure`（JSON として formFields に保存）
+
+```typescript
+interface ContactFormStructure {
+  contactFormUrl: string;      // お問い合わせページURL
+  formActionUrl: string;       // <form action="...">
+  submitSelector: string;      // 送信ボタンのCSSセレクタ
+  fields: Array<{
+    selector: string;          // [name='your-name'] 等
+    label: string;             // "お名前"
+    role: "name" | "email" | "company" | "phone" | "subject" | "message" | "other";
+    inputType: "text" | "email" | "tel" | "textarea";
+  }>;
+  hasCaptcha: boolean;
+  hasNonce: boolean;           // WordPress nonce等の動的トークン
 }
 ```
 
 ---
 
-## 7. UI/UX仕様
+## 8. UI/UX仕様
 
-### 7.1 `/sales` ページ構成（PIVOT後）
+### 8.1 `/sales` ページ構成
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  📊 統計サマリー                                           │
-│  [総リード数] [承認待ち] [CAPTCHA待ち] [送信済み] [返信あり] │
+│  🎯 営業エージェント           [🤖 AI実行] [🎭 モック]    │
+│  AI駆け込み寺 — Gemini + Tavily 自動営業ワークフロー       │
+│                           [🚀 エージェント起動]            │
 ├──────────────────────────────────────────────────────────┤
-│  ⚠️ 承認キュー（メインセクション）                         │
+│  🤖 エージェントログ                                       │
+│  ● Tavilyで関東圏の温泉旅館を検索中...                     │
+│  ✅ 完了: 5社のリードを追加                                │
+│  🚫 OTA・まとめサイト除外: 0件                             │
+│  🏢 旅館以外として除外: 0件                                │
+│  🌐 処理したURL: [url一覧]                                 │
+├──────────────────────────────────────────────────────────┤
+│  📊 [総リード数] [承認待ち] [送信済み] [返信あり] [成約]    │
+├──────────────────────────────────────────────────────────┤
+│  ⚠️ 承認キュー（5件）                                      │
 │  ┌────────────────────────────────────────────────────┐  │
-│  │ 🏢 ○○食品株式会社     業種: 食品小売    東京都渋谷区 │  │
-│  │ 🔗 フォームURL: https://xxfood.co.jp/contact/      │  │
-│  │ ─────────────────────────────────────────────────  │  │
-│  │ 📋 リサーチサマリー                                 │  │
-│  │ 「在庫管理をExcelで運用中。AI自動化の余地が大きい」  │  │
-│  │ ─────────────────────────────────────────────────  │  │
-│  │ ✉️ 件名: 在庫管理の自動化で月10時間削減できます     │  │
-│  │ [本文プレビュー ▼]                                 │  │
+│  │ 🏢 天成園  宿泊業・旅館  📍神奈川県箱根温泉  👥〜50名 │  │
+│  │ ✉️ info@tenseien.co.jp                              │  │
+│  │ 🔗 フォームURL: https://...  [🔐 CAPTCHA有り]      │  │
+│  │ 📋 リサーチサマリー: 予約返信・口コミ返信をAIで効率化 │  │
+│  │ 件名: 【予約管理・口コミ返信の自動化】天成園様へのご提案│  │
 │  │                                                    │  │
-│  │ [✅ 承認して送信] [✏️ 編集] [❌ 却下]              │  │
+│  │ CAPTCHA有り:                                       │  │
+│  │ [📋 文章をコピー] [🔗 フォームを開く]               │  │
+│  │ [✅ 手動送信完了としてマーク] [❌ 却下]              │  │
+│  │                                                    │  │
+│  │ CAPTCHA無し:                                       │  │
+│  │ [🤖 自動送信] [📋 文章をコピー] [🔗 フォームを開く] │  │
 │  └────────────────────────────────────────────────────┘  │
 ├──────────────────────────────────────────────────────────┤
-│  🔐 CAPTCHA要手動送信（フォームURLのみ表示・手動誘導）      │
-├──────────────────────────────────────────────────────────┤
 │  📋 リードパイプライン                                     │
-│  [全て] [草稿完了] [送信済み] [返信あり] [成約]            │
+│  [全て] [草稿完了] [🔐 手動送信待ち] [送信済み] [返信あり] │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 CAPTCHA企業の扱い
-
-- **自動送信はしない**
-- `/sales` ページに「手動送信が必要な企業」セクションを別枠で表示
-- フォームURLと生成済み文章をコピーボタン付きで表示
-- ユーザーが手動でフォームを開いて貼り付け送信できるようにする
-
 ---
 
-## 8. Phase 3 エージェント可視化UI要件
+## 9. Phase 3 エージェント可視化UI要件
 
 > 参考: Claw-Empire のオフィス画面のような、各エージェントが今何をしているか一目でわかるUI
 
-### 8.1 目指すUX
-
-- 各エージェントが「部屋（Department）」に所属
-- 各エージェントの上に**リアルタイムで今やっていること**が吹き出しで表示
-- ステータスに応じてアニメーション（待機中/稼働中/エラー）
-
-### 8.2 必要なUIコンポーネント
+### 9.1 必要なUIコンポーネント
 
 | コンポーネント | 説明 |
 |---|---|
-| `DepartmentRoom` | 部署ごとの区画コンテナ |
+| `DepartmentRoom` | 部署ごとの区画コンテナ（Sales / Research / Ops） |
 | `AgentCharacter` | エージェントカード（アバター + 名前 + ステータス + 吹き出し） |
-| `ActivityBubble` | `currentAction` をアニメ付きで表示 |
+| `ActivityBubble` | `currentAction` をアニメ付きでリアルタイム表示 |
 | `StatusPulse` | 稼働中エージェントのパルスアニメーション |
 | `GlobalActivityFeed` | 全エージェントのタイムライン |
 
-### 8.3 部署構成
+### 9.2 部署構成
 
 ```
 Sales Department     → Prospector / Copywriter / FormSubmitter / Tracker
@@ -360,102 +411,102 @@ Operations           → Commander（司令塔）
 
 ---
 
-## 9. API・外部サービス一覧
+## 10. API・外部サービス一覧
 
-| サービス | 用途 | 費用 | 公式URL |
+| サービス | 用途 | 費用 | ステータス |
 |---|---|---|---|
-| **Tavily API** | Web検索（企業リストアップ） | 月1,000回無料 | app.tavily.com |
-| **Gemini API** | 問い合わせ文章生成 ✅ 導入済み | 1M tokens/日 無料 | ai.google.dev |
-| **Firecrawl API** | Webクロール（フォームURL特定） | 月500クレジット無料 | firecrawl.dev |
-| **Playwright** | ブラウザ自動操作（フォーム入力・送信） | OSS・無料 | playwright.dev |
-| **Steel.dev** | クラウドブラウザ実行環境（Convexで実行不可の場合の代替） | 無料枠あり | steel.dev |
-| **Gmail API** | 返信メール受信監視のみ（送信は不要になった） | 無料 | console.cloud.google.com |
-| **Convex** | DB + リアルタイム同期 ✅ 導入済み | 無料枠あり | convex.dev |
+| **Tavily API** | Web検索（旅館リストアップ） | 月1,000回無料 | ✅ 設定済み |
+| **Gemini 1.5 Flash** | 旅館情報抽出・文章生成 | 1M tokens/日 無料 | ✅ 設定済み |
+| **Firecrawl API** | Webクロール（フォームURL特定・自動送信） | 月500クレジット無料 | ✅ 設定済み |
+| **Convex** | DB + リアルタイム同期 + Actions実行環境 | 無料枠あり | ✅ 設定済み |
+| **Vercel** | Next.js ホスティング | 無料枠あり | ✅ 設定済み |
+| **Gmail API** | 返信メール受信監視のみ | 無料 | 🔲 Phase 2-E |
 
 ---
 
-## 10. 実装フェーズ（全体ステップ）
+## 11. 実装フェーズ（全体ステップ）
 
 ### ✅ Phase 2-A: 基盤構築（完了）
 
-- [x] Convex スキーマ（leads / emailDrafts / salesLogs）
-- [x] agents テーブル拡張（currentAction / department / activityLog）
+- [x] Convex スキーマ（leads / emailDrafts / salesLogs / agents）
 - [x] /sales 承認キューUI
 - [x] Sidebar への営業エージェントリンク追加
-- [x] agents seed に Sales エージェント追加
+- [x] agents seed に Sales エージェント追加（Prospector / Researcher / Copywriter）
 
 ### ✅ Phase 2-B: AI連携（完了）
 
 - [x] Tavily API による企業リサーチ（salesAgent.ts）
-- [x] Gemini による企業情報抽出・問い合わせ文章生成
-- [x] TAVILY_API_KEY / GEMINI_API_KEY を Convex 本番環境に設定
+- [x] Gemini による情報抽出・問い合わせ文章生成
+- [x] TAVILY_API_KEY / GEMINI_API_KEY を Convex dev & prod に設定
 - [x] モック実行モード（APIキー不要のテスト用）
 - [x] デバッグログ表示（スキップ理由の可視化）
 
-### 🔄 Phase 2-C: リード取得精度向上（改善継続中）
+### ✅ Phase 2-C: ターゲット精度向上（完了）
 
-- [x] exclude_domains で検索段階でニュースサイトを除外
-- [x] search_depth: advanced に変更
-- [x] 検索クエリを「資本金/設立」等の企業固有キーワードに変更
-- [ ] isCompanyPage 判定の精度をさらに改善（現状19/20が除外される）
-- [ ] Firecrawl によるサイト内容の深掘り抽出（オプション）
+- [x] **業界PIVOT**: 首都圏中小企業 → **関東圏老舗旅館・温泉旅館**
+- [x] SEARCH_QUERIES を温泉地名指定（箱根・草津・伊香保・那須・鬼怒川・熱海 等）
+- [x] EXCLUDE_DOMAINS を26ドメインに拡充（全大手OTA除外）
+- [x] **URL/title ベース旅館判定**（RYOKAN_URL_KEYWORDS 26語）
+  - Gemini の isRyokan 失敗時もフォールバックでリード作成
+  - Gemini が false と判定してもURLが旅館系なら通過
+- [x] `buildFallbackRyokanInfo()` — Gemini失敗時の最小限データ生成
+- [x] 旅館向けパーソナライズ営業文章テンプレート（`generateRyokanSalesMessage`）
+- [x] **検証結果**: 5社/回のリード作成を確認（hakone-kamon.jp, tenseien.co.jp, suimeisou.com 等）
 
-### 🔲 Phase 2-D: フォーム送信PIVOT（次のメインタスク）
+### ✅ Phase 2-D: フォーム送信PIVOT（完了）
 
-- [ ] **Firecrawl でお問い合わせフォームURLを自動特定**
-  - 各企業サイトをクロールして「お問い合わせ」ページURLを抽出
-  - フォームフィールドのラベルと input name を取得
-- [ ] **DB拡張**: leads に `contactFormUrl`, `formFields` を追加
-- [ ] **DB拡張**: `emailDrafts` → `contactDrafts` にリネーム＋フィールド追加
-- [ ] **FormSubmitter Agent の実装**
-  - Playwright を Convex Action（"use node"）で実行
-  - 企業フォームを開く → フィールドを検出 → 入力 → 送信
-  - CAPTCHA検出時は `captcha_required` ステータスで即停止
-  - 送信完了の確認テキスト検出 → ログ記録
-- [ ] **CAPTCHA企業の手動送信UI**
-  - /sales ページに別セクションとして表示
-  - フォームURL + 生成文章のコピーボタン
+- [x] FIRECRAWL_API_KEY を Convex dev & prod に設定
+- [x] **DB拡張**: leads に `contactFormUrl`, `formFields`, `captcha_required` ステータス追加
+- [x] **DB拡張**: emailDrafts に `submitted`, `failed`, `submittedAt`, `failureReason` 追加
+- [x] **DB拡張**: salesLogs に `form_url_found`, `captcha_detected`, `form_submitted`, `submission_failed` 追加
+- [x] `discoverContactForm()` — 2フェーズフォーム発見（リンク探索 → HTML解析 → CAPTCHA検出）
+- [x] CAPTCHA検出ロジック（reCAPTCHA / hCaptcha / Snow Monkey Forms / CF7 nonce 等）
+- [x] `submitApprovedDraft` action — Firecrawl actions による自動フォーム送信
+- [x] **手動送信ヘルパーUI**: 「📋 文章をコピー」「🔗 フォームを開く」「✅ 手動送信完了としてマーク」
+- [x] CAPTCHA有り/無しで自動的にUIを切り替え
+- [x] `markDraftSubmitted` / `markDraftFailed` / `getDraftById` mutation 追加
 
-### 🔲 Phase 2-E: 返信トラッキング
+### 🔲 Phase 2-E: 返信トラッキング（次のステップ）
 
-- [ ] Gmail API（受信専用）のセットアップ
+- [ ] Gmail API（受信専用 `gmail.readonly` スコープ）のセットアップ
+- [ ] Google Cloud Console で OAuth2 Client ID 取得
 - [ ] Convex scheduled function で24時間ごとに受信箱をポーリング
-- [ ] 返信検知 → `leads.status` を `replied` に自動更新
-- [ ] 7日無返信 → フォローアップ文章を自動生成・承認キューへ
+- [ ] 返信検知 → `leads.status` を `replied` に自動更新 + Dashboard通知
+- [ ] 7日間返信なし → フォローアップ文章を自動生成・承認キューへ
 
 ### 🔲 Phase 3: エージェント可視化UI
 
-- [ ] DepartmentRoom / AgentCharacter / ActivityBubble コンポーネント
+- [ ] DepartmentRoom / AgentCharacter / ActivityBubble コンポーネント実装
 - [ ] GlobalActivityFeed（全エージェントの活動タイムライン）
 - [ ] /team ページの全面リニューアル
+- [ ] Convex WebSocket を使ったリアルタイム状態同期
 
 ---
 
-## 11. 必要なAPIキー一覧
+## 12. 必要なAPIキー一覧
 
 ```bash
 # ✅ 設定済み（Convex dev & prod 両方）
 TAVILY_API_KEY=tvly-dev-...
 GEMINI_API_KEY=AIzaSy...
-
-# 🔲 Phase 2-D で必要
-FIRECRAWL_API_KEY=fc-...       # firecrawl.dev で取得（月500クレジット無料）
+FIRECRAWL_API_KEY=fc-1eba8bdb...
 
 # 🔲 Phase 2-E で必要（受信監視のみ）
-GMAIL_CLIENT_ID=...            # Google Cloud Console
-GMAIL_CLIENT_SECRET=...        # Google Cloud Console
+GMAIL_CLIENT_ID=...
+GMAIL_CLIENT_SECRET=...
 GMAIL_REFRESH_TOKEN=...        # OAuth2 フロー完了後
-GMAIL_RECEIVER_ADDRESS=info@ai-kakekomi-dera.vercel.app  # 返信受付アドレス
+GMAIL_RECEIVER_ADDRESS=info@ai-kakekomi-dera.vercel.app
 ```
 
-### 取得手順
-
-| キー | 取得手順 |
+| キー | 取得方法 |
 |---|---|
+| TAVILY_API_KEY | https://app.tavily.com → API Keys |
+| GEMINI_API_KEY | https://ai.google.dev → Get API Key |
 | FIRECRAWL_API_KEY | https://firecrawl.dev → Sign up → API Keys |
-| Gmail OAuth（受信） | Google Cloud Console → Gmail API有効化 → OAuth2 Client ID（スコープ: gmail.readonly のみ） |
+| Gmail OAuth | Google Cloud Console → Gmail API有効化 → OAuth2 Client ID（スコープ: `gmail.readonly`） |
 
 ---
 
 *このドキュメントは mission-control リポジトリの Phase 2 要件定義書です。*
 *Claude Code と協力して設計・実装しています。*
+*最終更新: 2026-02-28*
