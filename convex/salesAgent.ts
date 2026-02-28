@@ -61,14 +61,16 @@ async function generateWithGemini(
 
 // ─────────────────────────────────────────────────────────────────
 // STEP 1: 企業リストアップ (Tavily × 複数クエリ)
+// 戦略: AI系クエリは外し、企業の「会社概要/お問い合わせ」ページを直撃
 // ─────────────────────────────────────────────────────────────────
 
 const SEARCH_QUERIES = [
-  "東京都 中小企業 AI ChatGPT 業務効率化 お問い合わせ",
-  "首都圏 中小企業 DX デジタル化 支援 連絡先",
-  "東京 小売業 飲食店 IT導入 問い合わせ",
-  "東京 士業 税理士 社労士 AI ツール 相談",
-  "神奈川 埼玉 中小企業 業務改善 デジタル 問い合わせ",
+  // 業種×地域で会社概要ページを狙う
+  "東京都 渋谷区 株式会社 会社概要 お問い合わせ 小売業",
+  "東京都 新宿区 有限会社 会社概要 連絡先 サービス業",
+  "東京都 中小企業 株式会社 会社概要 代表取締役 お問い合わせ",
+  "神奈川県 横浜市 中小企業 株式会社 会社概要 採用",
+  "埼玉県 さいたま市 中小企業 株式会社 事業内容 お問い合わせ",
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -90,36 +92,63 @@ async function extractCompanyInfo(
   geminiKey: string,
   searchResult: { title: string; url: string; content: string }
 ): Promise<CompanyInfo | null> {
+  // URLからドメインを取得してフォールバック用メアドを作成
+  let domain = "";
+  try {
+    domain = new URL(searchResult.url).hostname.replace("www.", "");
+  } catch { /* ignore */ }
+
+  // ニュースサイト・官公庁・個人ブログはスキップ
+  const skipDomains = ["pref.", "city.", "news", "nikkei", "yahoo", "google",
+    "wikipedia", "ameblo", "livedoor", "hatena", "note.com", "twitter",
+    "facebook", "instagram", "linkedin", "github", "youtube", "gov."];
+  if (skipDomains.some((s) => searchResult.url.includes(s))) return null;
+
   const prompt = `
-以下の検索結果から、企業情報を日本語でJSONとして抽出してください。
-情報がない場合は空文字""を使ってください。メールアドレスは見つからない場合は"contact@"＋ドメインで推測してください。
+以下の検索結果は日本の企業のWebページです。企業情報をJSONで抽出してください。
 
 検索結果:
 タイトル: ${searchResult.title}
 URL: ${searchResult.url}
-内容: ${searchResult.content.substring(0, 800)}
+内容: ${searchResult.content.substring(0, 1000)}
 
-以下のJSON形式のみで回答してください（他のテキスト不要）:
+抽出ルール:
+- companyName: 会社名（「株式会社」「有限会社」等を含む正式名称。見つからなければタイトルから推測）
+- industry: 業種（小売業/飲食業/IT・Web/士業/製造業/建設業/医療・介護/教育/サービス業 のいずれか）
+- location: 所在地（都道府県+市区町村。見つからなければURLのドメインから推測してよい）
+- estimatedSize: 従業員規模（〜10名/10〜50名/50〜100名/不明）
+- websiteUrl: "${searchResult.url}"をそのまま使用
+- contactEmail: ページ内のメールアドレス。なければ "info@${domain || "company.co.jp"}"
+- contactName: 担当者・代表者名（あれば）
+- researchSummary: この企業がAIを使うとどんな業務を効率化できるか（具体的に50字以内）
+- isCompanyPage: この結果が実際の企業ページかどうか（true/false）
+
+JSON形式のみで回答（コードブロック不要）:
 {
-  "companyName": "会社名（不明なら空文字）",
-  "industry": "業種（例: 小売業, IT, 飲食, 士業, 製造業 等）",
-  "location": "所在地（都道府県+市区町村）",
-  "estimatedSize": "推定規模（例: 〜10名, 10〜50名, 50〜100名）",
-  "websiteUrl": "WebサイトURL",
-  "contactEmail": "メールアドレス（見つからなければ info@ドメイン形式で推測）",
-  "contactName": "担当者名（あれば）",
-  "researchSummary": "AI導入で解決できそうな課題・業務（50〜100字）"
+  "companyName": "...",
+  "industry": "...",
+  "location": "...",
+  "estimatedSize": "...",
+  "websiteUrl": "...",
+  "contactEmail": "...",
+  "contactName": "",
+  "researchSummary": "...",
+  "isCompanyPage": true
 }
 `;
 
   try {
-    const raw = await generateWithGemini(geminiKey, prompt, 600);
-    // JSONブロックを抽出（```json ... ``` 対応）
+    const raw = await generateWithGemini(geminiKey, prompt, 700);
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
-    const parsed = JSON.parse(jsonMatch[0]) as CompanyInfo;
-    // 会社名が空の場合はスキップ
-    if (!parsed.companyName || parsed.companyName === "") return null;
+    const parsed = JSON.parse(jsonMatch[0]) as CompanyInfo & { isCompanyPage?: boolean };
+
+    // 企業ページでない / 会社名が空 はスキップ
+    if (!parsed.isCompanyPage) return null;
+    if (!parsed.companyName || parsed.companyName.length < 2) return null;
+    // ニュースや行政のページをフィルタ
+    if (parsed.companyName.includes("ニュース") || parsed.companyName.includes("行政")) return null;
+
     return parsed;
   } catch {
     return null;

@@ -14,6 +14,8 @@ import type * as auth from "../auth.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as memories from "../memories.js";
 import type * as messages from "../messages.js";
+import type * as sales from "../sales.js";
+import type * as salesAgent from "../salesAgent.js";
 import type * as schedules from "../schedules.js";
 import type * as tasks from "../tasks.js";
 import type * as workspaces from "../workspaces.js";
@@ -31,6 +33,8 @@ declare const fullApi: ApiFromModules<{
   authHelpers: typeof authHelpers;
   memories: typeof memories;
   messages: typeof messages;
+  sales: typeof sales;
+  salesAgent: typeof salesAgent;
   schedules: typeof schedules;
   tasks: typeof tasks;
   workspaces: typeof workspaces;
