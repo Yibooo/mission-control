@@ -30,6 +30,8 @@ export const createLead = mutation({
     location: v.string(),
     estimatedSize: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
+    contactFormUrl: v.optional(v.string()),   // Phase 2-D
+    formFields: v.optional(v.string()),        // Phase 2-D
     contactEmail: v.string(),
     contactName: v.optional(v.string()),
     researchSummary: v.optional(v.string()),
@@ -61,6 +63,7 @@ export const updateLeadStatus = mutation({
     status: v.union(
       v.literal("researching"),
       v.literal("draft_ready"),
+      v.literal("captcha_required"),
       v.literal("contacted"),
       v.literal("replied"),
       v.literal("negotiating"),

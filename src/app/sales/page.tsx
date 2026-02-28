@@ -7,9 +7,10 @@ import { useState } from "react";
 
 // ステータス表示マップ
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
-  researching:   { label: "調査中",       color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  draft_ready:   { label: "草稿準備完了", color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
-  contacted:     { label: "送信済み",     color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+  researching:      { label: "調査中",           color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  draft_ready:      { label: "草稿準備完了",     color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
+  captcha_required: { label: "🔐 手動送信待ち", color: "#f97316", bg: "rgba(249,115,22,0.12)" },
+  contacted:        { label: "送信済み",         color: "#10b981", bg: "rgba(16,185,129,0.12)" },
   replied:       { label: "返信あり",     color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
   negotiating:   { label: "商談中",       color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
   closed_won:    { label: "成約",         color: "#10b981", bg: "rgba(16,185,129,0.2)" },
@@ -63,7 +64,9 @@ export default function SalesPage() {
         const result = await runRealAgent({ targetArea: "東京都・首都圏", maxLeads: 5 });
         const msgs = [
           `✅ 完了: ${result.leadsCreated}社のリードを追加`,
-          `📝 ${result.draftsCreated}件のメール草稿を生成`,
+          `📝 ${result.draftsCreated}件のメッセージ草稿を生成`,
+          `🔗 ${result.formUrlsFound}社のお問い合わせフォームURL発見`,
+          `🔐 ${result.captchaDetected}社はCAPTCHA検出 → 手動送信待ち`,
           `🔎 検索結果合計: ${result.debug.searchResultsTotal}件`,
           `🚫 タイトルフィルタ除外: ${result.debug.skippedByTitle}件`,
           `🏢 企業ページ外として除外: ${result.debug.skippedNotCompany}件`,

@@ -128,12 +128,17 @@ export default defineSchema({
     location: v.string(),
     estimatedSize: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
+    // ── Phase 2-D: フォーム送信PIVOT ─────────────
+    contactFormUrl: v.optional(v.string()),   // お問い合わせフォームURL（Firecrawl で発見）
+    formFields: v.optional(v.string()),       // フォームフィールド構造（JSON文字列）
+    // ─────────────────────────────────────────────
     contactEmail: v.string(),
     contactName: v.optional(v.string()),
     researchSummary: v.optional(v.string()),
     status: v.union(
       v.literal("researching"),
       v.literal("draft_ready"),
+      v.literal("captcha_required"),  // CAPTCHA検出 → 手動送信待ち
       v.literal("contacted"),
       v.literal("replied"),
       v.literal("negotiating"),
@@ -148,7 +153,7 @@ export default defineSchema({
     updatedAt: v.number(),
   }),
 
-  // 生成メール草稿
+  // 生成メール草稿（Phase 2-D: フォーム送信にも対応）
   emailDrafts: defineTable({
     leadId: v.id("leads"),
     subject: v.string(),
@@ -157,11 +162,15 @@ export default defineSchema({
       v.literal("pending"),
       v.literal("approved"),
       v.literal("rejected"),
-      v.literal("sent")
+      v.literal("sent"),
+      v.literal("submitted"),   // フォーム経由で送信済み
+      v.literal("failed")       // 送信失敗
     ),
     editedBody: v.optional(v.string()),
     approvedAt: v.optional(v.number()),
     sentAt: v.optional(v.number()),
+    submittedAt: v.optional(v.number()),    // フォーム送信日時
+    failureReason: v.optional(v.string()),  // 失敗理由
     generatedBy: v.optional(v.string()),
     createdAt: v.number(),
   }),
@@ -173,10 +182,14 @@ export default defineSchema({
     event: v.union(
       v.literal("lead_created"),
       v.literal("research_done"),
+      v.literal("form_url_found"),       // フォームURL発見
+      v.literal("captcha_detected"),     // CAPTCHA検出 → スキップ
       v.literal("draft_generated"),
       v.literal("approved"),
       v.literal("rejected"),
       v.literal("sent"),
+      v.literal("form_submitted"),       // フォーム経由で送信成功
+      v.literal("submission_failed"),    // フォーム送信失敗
       v.literal("opened"),
       v.literal("replied"),
       v.literal("follow_up_scheduled"),
