@@ -402,7 +402,7 @@ export default function SalesPage() {
                           lineHeight: "1.7",
                           whiteSpace: "pre-wrap",
                         }}>
-                          {draft.body}
+                          {renderBodyWithLinks(draft.editedBody ?? draft.body)}
                         </div>
                       )}
                     </div>
@@ -691,6 +691,28 @@ function btnStyle(color: string): React.CSSProperties {
     fontWeight: 600,
     cursor: "pointer",
   };
+}
+
+// ─── ヘルパー: 本文中のURLをクリッカブルリンクに変換 ───
+// "https://..." を <a> タグに置き換えてレンダリング
+function renderBodyWithLinks(text: string): React.ReactNode[] {
+  const urlRegex = /(https?:\/\/[^\s\n]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) =>
+    part.match(/^https?:\/\//) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "#6366f1", textDecoration: "underline", wordBreak: "break-all" }}
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
 }
 
 // ─── ヘルパー: Gmail 構成URL を生成 ───
