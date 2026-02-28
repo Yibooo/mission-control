@@ -213,6 +213,58 @@ export const markDraftSent = mutation({
   },
 });
 
+// Phase 2-D: フォーム送信完了
+export const markDraftSubmitted = mutation({
+  args: { draftId: v.id("emailDrafts") },
+  handler: async (ctx, { draftId }) => {
+    const now = Date.now();
+    await ctx.db.patch(draftId, { approvalStatus: "submitted", submittedAt: now });
+    const draft = await ctx.db.get(draftId);
+    if (draft) {
+      await ctx.db.patch(draft.leadId, { status: "contacted", updatedAt: now });
+      await ctx.db.insert("salesLogs", {
+        leadId: draft.leadId,
+        emailDraftId: draftId,
+        event: "form_submitted",
+        detail: "フォーム経由で送信完了",
+        performedBy: "agent:FormSubmitter",
+        createdAt: now,
+      });
+    }
+  },
+});
+
+// Phase 2-D: フォーム送信失敗
+export const markDraftFailed = mutation({
+  args: {
+    draftId: v.id("emailDrafts"),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, { draftId, reason }) => {
+    const now = Date.now();
+    await ctx.db.patch(draftId, { approvalStatus: "failed", failureReason: reason });
+    const draft = await ctx.db.get(draftId);
+    if (draft) {
+      await ctx.db.insert("salesLogs", {
+        leadId: draft.leadId,
+        emailDraftId: draftId,
+        event: "submission_failed",
+        detail: reason ?? "送信失敗",
+        performedBy: "agent:FormSubmitter",
+        createdAt: now,
+      });
+    }
+  },
+});
+
+// Phase 2-D: draft を ID で取得
+export const getDraftById = query({
+  args: { draftId: v.id("emailDrafts") },
+  handler: async (ctx, { draftId }) => {
+    return await ctx.db.get(draftId);
+  },
+});
+
 // ─────────────────────────────────────────────────────────────────
 // SALES LOGS — アクティビティログ参照
 // ─────────────────────────────────────────────────────────────────

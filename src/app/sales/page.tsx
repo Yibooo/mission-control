@@ -39,17 +39,20 @@ export default function SalesPage() {
 
   const runMock = useMutation(api.sales.runMockSalesAgent);
   const runRealAgent = useAction(api.salesAgent.runSalesAgent);
+  const submitForm = useAction(api.salesAgent.submitApprovedDraft);
   const approveDraft = useMutation(api.sales.approveDraft);
   const rejectDraft = useMutation(api.sales.rejectDraft);
   const markSent = useMutation(api.sales.markDraftSent);
 
-  const [activeTab, setActiveTab] = useState<"all" | "draft_ready" | "contacted" | "replied" | "closed_won">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "draft_ready" | "captcha_required" | "contacted" | "replied" | "closed_won">("all");
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState<{ id: string; body: string } | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [submittingDraft, setSubmittingDraft] = useState<string | null>(null);
   const [runMode, setRunMode] = useState<"real" | "mock">("real");
   const [agentLog, setAgentLog] = useState<string[]>([]);
   const [showLogFor, setShowLogFor] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const filteredLeads = activeTab === "all"
     ? allLeads
@@ -108,6 +111,30 @@ export default function SalesPage() {
     setEditingDraft(null);
     setExpandedDraft(null);
     alert("✅ 承認＆送信完了（実際の送信はGmail API連携後に有効化されます）");
+  };
+
+  // フォーム自動送信（CAPTCHA無しの場合のみ）
+  const handleAutoSubmit = async (draftId: Id<"emailDrafts">) => {
+    setSubmittingDraft(draftId);
+    try {
+      const result = await submitForm({ draftId });
+      if (result.success) {
+        alert("✅ フォーム送信完了！");
+      } else {
+        alert(`⚠️ 送信確認できませんでした。\nフォームURLを直接確認してください:\n${result.formUrl ?? ""}`);
+      }
+    } catch (e) {
+      alert(`❌ 送信エラー: ${String(e)}`);
+    } finally {
+      setSubmittingDraft(null);
+    }
+  };
+
+  // 文章をクリップボードにコピー
+  const handleCopyText = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleReject = async (draftId: Id<"emailDrafts">) => {
@@ -296,6 +323,26 @@ export default function SalesPage() {
                     </button>
                   </div>
 
+                  {/* フォームURL（Phase 2-D） */}
+                  {lead.contactFormUrl && (
+                    <div style={{ margin: "0 20px 12px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>🔗 フォームURL:</span>
+                      <a
+                        href={lead.contactFormUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: "12px", color: "#6366f1", textDecoration: "underline", wordBreak: "break-all" }}
+                      >
+                        {lead.contactFormUrl}
+                      </a>
+                      {lead.status === "captcha_required" && (
+                        <span style={{ fontSize: "11px", background: "rgba(249,115,22,0.15)", color: "#f97316", padding: "2px 8px", borderRadius: "99px" }}>
+                          🔐 CAPTCHA有り（手動送信）
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* リサーチサマリー */}
                   {lead.researchSummary && (
                     <div style={{
@@ -372,40 +419,73 @@ export default function SalesPage() {
                   }}>
                     {isEditing ? (
                       <>
-                        <button
-                          onClick={() => handleApproveAndSend(draft._id as Id<"emailDrafts">)}
-                          style={{ ...btnStyle("#10b981") }}
-                        >
-                          ✅ 編集内容で承認・送信
+                        <button onClick={() => handleApproveAndSend(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#10b981") }}>
+                          ✅ 編集内容で承認
                         </button>
-                        <button
-                          onClick={() => setEditingDraft(null)}
-                          style={{ ...btnStyle("#64748b") }}
-                        >
+                        <button onClick={() => setEditingDraft(null)} style={{ ...btnStyle("#64748b") }}>
                           キャンセル
                         </button>
                       </>
-                    ) : (
+                    ) : lead.status === "captcha_required" ? (
+                      // CAPTCHA有り → 手動送信ヘルパー
                       <>
                         <button
-                          onClick={() => handleApproveAndSend(draft._id as Id<"emailDrafts">)}
-                          style={{ ...btnStyle("#10b981") }}
+                          onClick={() => handleCopyText(`件名: ${draft.subject}\n\n${draft.editedBody ?? draft.body}`, draft._id)}
+                          style={{ ...btnStyle("#6366f1") }}
                         >
-                          ✅ 承認して送信
+                          {copiedId === draft._id ? "✅ コピー済み" : "📋 文章をコピー"}
                         </button>
+                        {lead.contactFormUrl && (
+                          <a
+                            href={lead.contactFormUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ ...btnStyle("#f97316"), textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+                          >
+                            🔗 フォームを開く
+                          </a>
+                        )}
+                        <button onClick={() => handleApproveAndSend(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#10b981") }}>
+                          ✅ 手動送信完了としてマーク
+                        </button>
+                        <button onClick={() => handleReject(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#ef4444") }}>
+                          ❌ 却下
+                        </button>
+                      </>
+                    ) : (
+                      // CAPTCHA無し → 自動送信 or 承認
+                      <>
+                        {lead.contactFormUrl && (
+                          <button
+                            onClick={() => handleAutoSubmit(draft._id as Id<"emailDrafts">)}
+                            disabled={submittingDraft === draft._id}
+                            style={{ ...btnStyle("#10b981") }}
+                          >
+                            {submittingDraft === draft._id ? "⏳ 送信中..." : "🤖 自動送信"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleCopyText(`件名: ${draft.subject}\n\n${draft.editedBody ?? draft.body}`, draft._id)}
+                          style={{ ...btnStyle("#6366f1") }}
+                        >
+                          {copiedId === draft._id ? "✅ コピー済み" : "📋 文章をコピー"}
+                        </button>
+                        {lead.contactFormUrl && (
+                          <a href={lead.contactFormUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ ...btnStyle("#64748b"), textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+                            🔗 フォームを開く
+                          </a>
+                        )}
                         <button
                           onClick={() => {
                             setExpandedDraft(draft._id);
                             setEditingDraft({ id: draft._id, body: draft.body });
                           }}
-                          style={{ ...btnStyle("#6366f1") }}
+                          style={{ ...btnStyle("#475569") }}
                         >
                           ✏️ 編集
                         </button>
-                        <button
-                          onClick={() => handleReject(draft._id as Id<"emailDrafts">)}
-                          style={{ ...btnStyle("#ef4444") }}
-                        >
+                        <button onClick={() => handleReject(draft._id as Id<"emailDrafts">)} style={{ ...btnStyle("#ef4444") }}>
                           ❌ 却下
                         </button>
                       </>
@@ -429,6 +509,7 @@ export default function SalesPage() {
           {([
             { key: "all", label: "全て" },
             { key: "draft_ready", label: "草稿完了" },
+            { key: "captcha_required", label: "🔐 手動送信待ち" },
             { key: "contacted", label: "送信済み" },
             { key: "replied", label: "返信あり" },
             { key: "closed_won", label: "成約" },
