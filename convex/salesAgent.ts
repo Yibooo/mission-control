@@ -109,7 +109,18 @@ async function firecrawlScrape(
 
 // ─────────────────────────────────────────────────────────────────
 // STEP 1: 旅館情報を Gemini で抽出
+// URL/title に旅館キーワードがあれば Gemini 失敗時もフォールバックで通す
 // ─────────────────────────────────────────────────────────────────
+
+// URL や タイトルに含まれる旅館判定キーワード
+const RYOKAN_URL_KEYWORDS = [
+  "ryokan", "旅館", "onsen", "温泉", "yado", "宿", "kanko", "kankou",
+  "inn", "spa", "hotel", "ホテル", "resort", "リゾート",
+  "hakone", "箱根", "kusatsu", "草津", "ikaho", "伊香保",
+  "nasu", "那須", "kinugawa", "鬼怒川", "atami", "熱海",
+  "yugawara", "湯河原", "shuzenji", "修善寺", "shima", "四万",
+  "nikko", "日光",
+];
 
 interface RyokanInfo {
   companyName: string;
@@ -118,6 +129,48 @@ interface RyokanInfo {
   contactEmail: string;
   researchSummary: string;
   isRyokan: boolean;  // 旅館・温泉旅館かどうか
+}
+
+// URL / title から旅館っぽいかを判定
+function looksLikeRyokanSite(url: string, title: string): boolean {
+  const text = (url + " " + title).toLowerCase();
+  return RYOKAN_URL_KEYWORDS.some(k => text.includes(k.toLowerCase()));
+}
+
+// Gemini 失敗時の最小限フォールバックデータ
+function buildFallbackRyokanInfo(
+  searchResult: { title: string; url: string },
+  domain: string
+): RyokanInfo {
+  // タイトルから旅館名を抽出（【】や | 以降を除去）
+  const cleanTitle = searchResult.title
+    .replace(/【.*?】/g, "")
+    .replace(/\|.*$/, "")
+    .replace(/｜.*$/, "")
+    .trim()
+    .substring(0, 40) || domain;
+
+  // URL から温泉地名を推測
+  let location = "関東圏";
+  const url = searchResult.url.toLowerCase();
+  if (url.includes("hakone") || searchResult.title.includes("箱根")) location = "神奈川県箱根温泉";
+  else if (url.includes("kusatsu") || searchResult.title.includes("草津")) location = "群馬県草津温泉";
+  else if (url.includes("ikaho") || searchResult.title.includes("伊香保")) location = "群馬県伊香保温泉";
+  else if (url.includes("nasu") || searchResult.title.includes("那須")) location = "栃木県那須温泉";
+  else if (url.includes("kinugawa") || searchResult.title.includes("鬼怒川")) location = "栃木県鬼怒川温泉";
+  else if (url.includes("atami") || searchResult.title.includes("熱海")) location = "静岡県熱海温泉";
+  else if (url.includes("yugawara") || searchResult.title.includes("湯河原")) location = "神奈川県湯河原温泉";
+  else if (url.includes("shuzenji") || searchResult.title.includes("修善寺")) location = "静岡県修善寺温泉";
+  else if (url.includes("nikko") || searchResult.title.includes("日光")) location = "栃木県日光温泉";
+
+  return {
+    companyName: cleanTitle,
+    location,
+    websiteUrl: searchResult.url,
+    contactEmail: `info@${domain}`,
+    researchSummary: "予約・問い合わせへの自動返信や口コミ返信をAIで効率化できる",
+    isRyokan: true,
+  };
 }
 
 async function extractRyokanInfo(
@@ -135,21 +188,22 @@ async function extractRyokanInfo(
   const skipTitle = ["ランキング", "おすすめ", "厳選", "まとめ", "一覧", "比較", "口コミ", "人気旅館"];
   if (skipTitle.some(w => searchResult.title.includes(w))) return null;
 
-  const prompt = `以下のWebページは日本の旅館・温泉旅館の公式サイトです。情報をJSONで抽出してください。
+  // URL/title ベースで旅館かどうかを事前判定
+  const isRyokanByUrl = looksLikeRyokanSite(searchResult.url, searchResult.title);
+
+  const prompt = `以下のWebページ情報をJSONで抽出してください。
 
 タイトル: ${searchResult.title}
 URL: ${searchResult.url}
 内容: ${searchResult.content.substring(0, 1200)}
 
 抽出ルール:
-- companyName: 旅館名（「旅館」「温泉旅館」「○○の宿」等を含む正式名称）
+- companyName: 旅館・ホテル・宿の名称。正式名称を優先。
 - location: 都道府県+温泉地名（例: 神奈川県箱根温泉、群馬県草津温泉）
 - websiteUrl: "${searchResult.url}"をそのまま使用
 - contactEmail: ページ内のメアド。なければ "info@${domain}"
-- researchSummary: この旅館がAIを活用できる業務（50字以内。例:「予約管理・口コミ返信・多言語対応をAIで効率化できる」）
-- isRyokan: 旅館・ホテル・宿の公式サイトかつ個人経営〜中小規模ならtrue。OTAや比較サイト・ニュースはfalse
-
-旅館の公式サイトのドメインは .co.jp/.jp/.com 等様々なので、内容で判断してください。
+- researchSummary: AIを活用できる業務（50字以内。例:「予約管理・口コミ返信・多言語対応をAIで効率化できる」）
+- isRyokan: 旅館・ホテル・宿の公式サイトならtrue。OTAや比較サイト・ニュースはfalse
 
 JSONのみで回答:
 {
@@ -164,12 +218,29 @@ JSONのみで回答:
   try {
     const raw = await generateWithGemini(geminiKey, prompt, 600);
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
+
+    if (!match) {
+      // Gemini が JSON を返さなかった → URLが旅館系なら最小限データで通す
+      if (isRyokanByUrl) return buildFallbackRyokanInfo(searchResult, domain);
+      return null;
+    }
+
     const parsed = JSON.parse(match[0]) as RyokanInfo;
-    if (!parsed.isRyokan) return null;
-    if (!parsed.companyName || parsed.companyName.length < 2) return null;
-    return parsed;
-  } catch { return null; }
+
+    // URLが旅館系なら Gemini が isRyokan=false と言っても通す
+    if (!parsed.isRyokan && !isRyokanByUrl) return null;
+    if (!parsed.companyName || parsed.companyName.length < 2) {
+      if (isRyokanByUrl) return buildFallbackRyokanInfo(searchResult, domain);
+      return null;
+    }
+
+    return { ...parsed, isRyokan: true };
+
+  } catch {
+    // Gemini エラー → URLが旅館系なら最小限データで通す
+    if (isRyokanByUrl) return buildFallbackRyokanInfo(searchResult, domain);
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────

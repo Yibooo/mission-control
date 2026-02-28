@@ -63,16 +63,16 @@ export default function SalesPage() {
     setAgentLog([]);
     try {
       if (runMode === "real") {
-        setAgentLog(["🔍 Tavily で首都圏の企業を検索中（advance検索 + ニュースドメイン除外）..."]);
-        const result = await runRealAgent({ targetArea: "東京都・首都圏", maxLeads: 5 });
+        setAgentLog(["🔍 Tavily で関東圏の温泉旅館を検索中（advanced検索 + OTA除外）..."]);
+        const result = await runRealAgent({ targetArea: "関東圏温泉旅館", maxLeads: 5 });
         const msgs = [
           `✅ 完了: ${result.leadsCreated}社のリードを追加`,
           `📝 ${result.draftsCreated}件のメッセージ草稿を生成`,
           `🔗 ${result.formUrlsFound}社のお問い合わせフォームURL発見`,
           `🔐 ${result.captchaDetected}社はCAPTCHA検出 → 手動送信待ち`,
           `🔎 検索結果合計: ${result.debug.searchResultsTotal}件`,
-          `🚫 タイトルフィルタ除外: ${result.debug.skippedByTitle}件`,
-          `🏢 企業ページ外として除外: ${result.debug.skippedNotCompany}件`,
+          `🚫 OTA・まとめサイト除外: ${result.debug.skippedOTA}件`,
+          `🏢 旅館以外として除外: ${result.debug.skippedNotRyokan}件`,
           `♻️ 重複スキップ: ${result.debug.skippedDuplicate}件`,
         ];
         if (result.errors.length > 0) {
@@ -224,7 +224,7 @@ export default function SalesPage() {
           {isRunning && (
             <div style={{ color: "#94a3b8", display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }}>●</span>
-              Gemini + Tavily で首都圏の企業をリサーチ中... （30秒〜2分かかります）
+              Gemini + Tavily で関東圏の温泉旅館をリサーチ中... （30秒〜2分かかります）
             </div>
           )}
           {agentLog.map((msg, i) => (
