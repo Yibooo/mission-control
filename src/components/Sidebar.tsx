@@ -4,13 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/", label: "ダッシュボード", icon: "🏠" },
-  { href: "/command", label: "Command", icon: "🤖" },
-  { href: "/tasks", label: "タスクボード", icon: "📋" },
-  { href: "/workspaces", label: "ワークスペース", icon: "⚡" },
-  { href: "/calendar", label: "カレンダー", icon: "📅" },
-  { href: "/memories", label: "メモリ", icon: "🧠" },
-  { href: "/team", label: "チーム", icon: "👥" },
+  { href: "/", label: "ダッシュボード", icon: "🏠", group: "main" },
+  { href: "/command", label: "Command", icon: "🤖", group: "main" },
+  { href: "/tasks", label: "タスクボード", icon: "📋", group: "main" },
+  { href: "/workspaces", label: "ワークスペース", icon: "⚡", group: "main" },
+  { href: "/calendar", label: "カレンダー", icon: "📅", group: "main" },
+  { href: "/memories", label: "メモリ", icon: "🧠", group: "main" },
+  { href: "/team", label: "チーム", icon: "👥", group: "main" },
+  // ─── Phase 2: AI駆け込み寺 営業エージェント ───
+  { href: "/sales", label: "営業エージェント", icon: "🎯", group: "sales" },
 ];
 
 // モバイル下部ナビに表示する項目（5個まで）
@@ -52,7 +54,8 @@ export default function Sidebar() {
 
         {/* ナビゲーション */}
         <nav style={{ flex: 1 }}>
-          {navItems.map(({ href, label, icon }) => {
+          {/* メインナビ */}
+          {navItems.filter((i) => i.group === "main").map(({ href, label, icon }) => {
             const active = pathname === href;
             return (
               <Link
@@ -68,6 +71,37 @@ export default function Sidebar() {
                   color: active ? "#a5b4fc" : "#94a3b8",
                   background: active ? "rgba(99,102,241,0.12)" : "transparent",
                   borderLeft: active ? "3px solid #6366f1" : "3px solid transparent",
+                  textDecoration: "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: "16px" }}>{icon}</span>
+                {label}
+              </Link>
+            );
+          })}
+
+          {/* セクション区切り: AI駆け込み寺 */}
+          <div style={{ margin: "12px 20px 4px", borderTop: "1px solid var(--border)" }} />
+          <div style={{ padding: "4px 20px 6px", fontSize: "10px", color: "#475569", letterSpacing: "0.08em", fontWeight: 600 }}>
+            AI駆け込み寺
+          </div>
+          {navItems.filter((i) => i.group === "sales").map(({ href, label, icon }) => {
+            const active = pathname === href || pathname.startsWith(href + "/");
+            return (
+              <Link
+                key={href}
+                href={href}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "10px 20px",
+                  fontSize: "14px",
+                  fontWeight: active ? 600 : 400,
+                  color: active ? "#fbbf24" : "#94a3b8",
+                  background: active ? "rgba(251,191,36,0.1)" : "transparent",
+                  borderLeft: active ? "3px solid #f59e0b" : "3px solid transparent",
                   textDecoration: "none",
                   transition: "all 0.15s",
                 }}

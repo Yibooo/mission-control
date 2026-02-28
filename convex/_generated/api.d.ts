@@ -10,6 +10,8 @@
 
 import type * as agents from "../agents.js";
 import type * as ai from "../ai.js";
+import type * as auth from "../auth.js";
+import type * as authHelpers from "../authHelpers.js";
 import type * as memories from "../memories.js";
 import type * as messages from "../messages.js";
 import type * as schedules from "../schedules.js";
@@ -25,6 +27,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   agents: typeof agents;
   ai: typeof ai;
+  auth: typeof auth;
+  authHelpers: typeof authHelpers;
   memories: typeof memories;
   messages: typeof messages;
   schedules: typeof schedules;

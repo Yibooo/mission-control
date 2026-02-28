@@ -108,5 +108,82 @@ export default defineSchema({
     completedTasks: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    // Phase 3: エージェント可視化UI用フィールド
+    currentAction: v.optional(v.string()),     // リアルタイムアクション表示用
+    department: v.optional(v.string()),         // 部署: "sales" | "research" | "ops"
+    activityLog: v.optional(v.array(v.object({
+      action: v.string(),
+      timestamp: v.number(),
+    }))),
+  }),
+
+  // ─────────────────────────────────────────────
+  // Phase 2: AI駆け込み寺 営業エージェント
+  // ─────────────────────────────────────────────
+
+  // 見込み企業管理
+  leads: defineTable({
+    companyName: v.string(),
+    industry: v.string(),
+    location: v.string(),
+    estimatedSize: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+    contactEmail: v.string(),
+    contactName: v.optional(v.string()),
+    researchSummary: v.optional(v.string()),
+    status: v.union(
+      v.literal("researching"),
+      v.literal("draft_ready"),
+      v.literal("contacted"),
+      v.literal("replied"),
+      v.literal("negotiating"),
+      v.literal("closed_won"),
+      v.literal("closed_lost"),
+      v.literal("rejected")
+    ),
+    source: v.optional(v.string()),
+    assignedAgentId: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  // 生成メール草稿
+  emailDrafts: defineTable({
+    leadId: v.id("leads"),
+    subject: v.string(),
+    body: v.string(),
+    approvalStatus: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("sent")
+    ),
+    editedBody: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
+    sentAt: v.optional(v.number()),
+    generatedBy: v.optional(v.string()),
+    createdAt: v.number(),
+  }),
+
+  // 営業アクティビティログ
+  salesLogs: defineTable({
+    leadId: v.id("leads"),
+    emailDraftId: v.optional(v.id("emailDrafts")),
+    event: v.union(
+      v.literal("lead_created"),
+      v.literal("research_done"),
+      v.literal("draft_generated"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("sent"),
+      v.literal("opened"),
+      v.literal("replied"),
+      v.literal("follow_up_scheduled"),
+      v.literal("meeting_scheduled")
+    ),
+    detail: v.optional(v.string()),
+    performedBy: v.optional(v.string()),
+    createdAt: v.number(),
   }),
 });
