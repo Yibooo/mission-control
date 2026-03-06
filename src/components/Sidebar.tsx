@@ -13,6 +13,8 @@ const navItems = [
   { href: "/team", label: "チーム", icon: "👥", group: "main" },
   // ─── Phase 2: AI駆け込み寺 営業エージェント ───
   { href: "/sales", label: "営業エージェント", icon: "🎯", group: "sales" },
+  // ─── Phase 3: YouTube PDCA 自動化 ───
+  { href: "/youtube-pdca", label: "YouTube PDCA", icon: "📺", group: "youtube" },
 ];
 
 // モバイル下部ナビに表示する項目（5個まで）
@@ -102,6 +104,37 @@ export default function Sidebar() {
                   color: active ? "#fbbf24" : "#94a3b8",
                   background: active ? "rgba(251,191,36,0.1)" : "transparent",
                   borderLeft: active ? "3px solid #f59e0b" : "3px solid transparent",
+                  textDecoration: "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: "16px" }}>{icon}</span>
+                {label}
+              </Link>
+            );
+          })}
+
+          {/* セクション区切り: YouTube PDCA */}
+          <div style={{ margin: "12px 20px 4px", borderTop: "1px solid var(--border)" }} />
+          <div style={{ padding: "4px 20px 6px", fontSize: "10px", color: "#475569", letterSpacing: "0.08em", fontWeight: 600 }}>
+            YouTube自動化
+          </div>
+          {navItems.filter((i) => i.group === "youtube").map(({ href, label, icon }) => {
+            const active = pathname === href || pathname.startsWith(href + "/");
+            return (
+              <Link
+                key={href}
+                href={href}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "10px 20px",
+                  fontSize: "14px",
+                  fontWeight: active ? 600 : 400,
+                  color: active ? "#f87171" : "#94a3b8",
+                  background: active ? "rgba(248,113,113,0.1)" : "transparent",
+                  borderLeft: active ? "3px solid #ef4444" : "3px solid transparent",
                   textDecoration: "none",
                   transition: "all 0.15s",
                 }}
