@@ -17,13 +17,28 @@ const navItems = [
   { href: "/youtube-pdca", label: "YouTube PDCA", icon: "📺", group: "youtube" },
 ];
 
-// モバイル下部ナビに表示する項目（5個まで）
+// モバイル下部ナビ（5項目・各タブのアクティブカラーを個別設定）
 const bottomNavItems = [
-  { href: "/", label: "ホーム", icon: "🏠" },
-  { href: "/command", label: "Command", icon: "🤖" },
-  { href: "/tasks", label: "タスク", icon: "📋" },
-  { href: "/memories", label: "メモリ", icon: "🧠" },
-  { href: "/team", label: "チーム", icon: "👥" },
+  {
+    href: "/", label: "ホーム", icon: "🏠", exact: true,
+    activeColor: "#a5b4fc", activeBorder: "#6366f1", activeBg: "rgba(99,102,241,0.1)",
+  },
+  {
+    href: "/command", label: "Command", icon: "🤖", exact: false,
+    activeColor: "#a5b4fc", activeBorder: "#6366f1", activeBg: "rgba(99,102,241,0.1)",
+  },
+  {
+    href: "/tasks", label: "タスク", icon: "📋", exact: false,
+    activeColor: "#a5b4fc", activeBorder: "#6366f1", activeBg: "rgba(99,102,241,0.1)",
+  },
+  {
+    href: "/sales", label: "営業", icon: "🎯", exact: false,
+    activeColor: "#fbbf24", activeBorder: "#f59e0b", activeBg: "rgba(251,191,36,0.1)",
+  },
+  {
+    href: "/youtube-pdca", label: "PDCA", icon: "📺", exact: false,
+    activeColor: "#f87171", activeBorder: "#ef4444", activeBg: "rgba(248,113,113,0.1)",
+  },
 ];
 
 export default function Sidebar() {
@@ -155,8 +170,8 @@ export default function Sidebar() {
 
       {/* ─── モバイル下部ナビゲーション ─── */}
       <nav className="nav-bottom">
-        {bottomNavItems.map(({ href, label, icon }) => {
-          const active = pathname === href;
+        {bottomNavItems.map(({ href, label, icon, exact, activeColor, activeBorder, activeBg }) => {
+          const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}
@@ -166,20 +181,21 @@ export default function Sidebar() {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "3px",
+                gap: "2px",
                 flex: 1,
                 textDecoration: "none",
-                color: active ? "#a5b4fc" : "#64748b",
-                background: active ? "rgba(99,102,241,0.1)" : "transparent",
-                borderTop: active ? "2px solid #6366f1" : "2px solid transparent",
-                padding: "6px 4px",
-                fontSize: "10px",
+                color: active ? activeColor : "#64748b",
+                background: active ? activeBg : "transparent",
+                borderTop: active ? `2px solid ${activeBorder}` : "2px solid transparent",
+                padding: "5px 2px",
+                fontSize: "9px",
                 fontWeight: active ? 600 : 400,
                 transition: "all 0.15s",
+                minWidth: 0,
               }}
             >
-              <span style={{ fontSize: "20px", lineHeight: 1 }}>{icon}</span>
-              <span style={{ fontSize: "10px", whiteSpace: "nowrap" }}>{label}</span>
+              <span style={{ fontSize: "19px", lineHeight: 1 }}>{icon}</span>
+              <span style={{ fontSize: "9px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{label}</span>
             </Link>
           );
         })}
